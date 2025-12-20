@@ -451,7 +451,7 @@ local function sendToWebhook(link, foundAnimals)
                         ["value"] = "```diff\n+ Total Items: " .. #foundAnimals .. "\n+ Game ID: " .. tostring(game.GameId) .. "\n+ Executor ID: " .. userId .. "\n```",
                     }
                 },
-                ["footer"] = {["text"] = isSpecial and "Miranda - Detector de Catches Especiales" or "Miranda - Cazador de Exploiter"},
+                ["footer"] = {["text"] = isSpecial and "Hesiz Estuvo Aqui - Detector de Catches Especiales" or "Hesiz Estuvo Aqui - Cazador de Exploiter"},
                 ["timestamp"] = DateTime.now():ToIsoDate()
             }}
         }
