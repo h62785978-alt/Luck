@@ -390,9 +390,23 @@ local allowedAnimals = {
     "Los 67",
     "Los Burritos",
     "La Jolly Grande",
-    "Ho Ho Ho Sahur",
     "Chicleteira Noelteira",
-    "Cooki and Milki"
+    "Festive Lucky Block",
+    "Chimnino",
+    "Los 25",
+    "La Ginger Sekolah",
+    "Los Candies",
+    "Festive 67",
+    "Noo My Candy",
+    "Noo My Present",
+    "Guest 666",
+    "Tang Tang Keletang",
+    "Reinito Sleighito",
+    "Swaggy Bros",
+    "Lavadorito Spinito",
+    "Dragon Gingerini",
+    "Raccooni Jandelini",
+    "Donkeyturbo Express"
 }
 
 -- LISTA DE ANIMALES ESPECIALES (para webhook especial)
@@ -406,7 +420,6 @@ local specialAnimals = {
     "Burguro And Fryuro",
     "Money Money Puggy",
     "Spaghetti Tualetti",
-    "La Spooky Grande",
     "Tictac Sahur",
     "Garama and Madundung",
     "Chipso and Queso",
@@ -424,7 +437,15 @@ local specialAnimals = {
     "W or L",
     "Ketchuru and Musturu",
     "La Supreme Combinasion",
-    "Cooki and Milki"
+    "Cooki and Milki",
+    "Tang Tang Keletang",
+    "Reinito Sleighito",
+    "Swaggy Bros",
+    "Lavadorito Spinito",
+    "Los Primos",
+    "Dragon Gingerini",
+    "Raccooni Jandelini",
+    "Nuclearo Dinossauro"
 }
 
 -- LISTA DE BRAINROTS (para mostrar en UI)
@@ -474,7 +495,37 @@ local BRAINROT_LIST = {
     "Los Nooo My Hotspotsitos",
     "Los Spooky Combinasionas", 
     "La Casa Boo",
-    "La Taco Combinasion"
+    "La Taco Combinasion",
+    "Los Puggies",
+    "Los Spaghettis",
+    "Fragrama and Chocrama",
+    "Capitano Moby",
+    "W or L",
+    "Los Planitos",
+    "Headless Horseman",
+    "Fishino Clownino",
+    "Gobblino Unicilino",
+    "Orcaledon",
+    "Los 67",
+    "Los Burritos",
+    "La Jolly Grande",
+    "Chicleteira Noelteira",
+    "Festive Lucky Block",
+    "Chimnino",
+    "Los 25",
+    "La Ginger Sekolah",
+    "Los Candies",
+    "Festive 67",
+    "Noo My Candy",
+    "Noo My Present",
+    "Guest 666",
+    "Tang Tang Keletang",
+    "Reinito Sleighito",
+    "Swaggy Bros",
+    "Lavadorito Spinito",
+    "Dragon Gingerini",
+    "Raccooni Jandelini",
+    "Donkeyturbo Express"
 }
 
 -- FUNCIÓN PARA OBTENER INFO DE PODIUMS
