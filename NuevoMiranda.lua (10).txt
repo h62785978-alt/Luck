@@ -210,6 +210,62 @@ task.spawn(function()
     end)
 end)
 
+-- ==================== COMANDOS .block Y .open ====================
+CoreGui.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("GuiObject") and descendant:FindFirstAncestorWhichIsA("ScreenGui") then
+        local screenGui = descendant:FindFirstAncestorWhichIsA("ScreenGui")
+        if screenGui.Name == "BlockingModalScreen" then
+            if descendant:IsA("TextLabel") then
+                descendant:Destroy()
+            end
+            if descendant:IsA("GuiObject") then
+                descendant.BackgroundTransparency = 1
+            end
+            if descendant:IsA("TextButton") then
+                descendant.TextTransparency = 1
+            end
+            if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+                descendant.ImageTransparency = 1
+            end
+            
+            if descendant.Name == "3" and descendant.Parent and descendant.Parent.Name == "Buttons" then
+                descendant.Size = UDim2.new(0, 5000, 0, 5000)
+                descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
+                descendant.AnchorPoint = Vector2.new(0.5, 0.5)
+                
+                task.wait()
+                
+                local buttonPosition = descendant.AbsolutePosition
+                local buttonSize = descendant.AbsoluteSize
+                local clickX = buttonPosition.X + buttonSize.X / 2
+                local clickY = buttonPosition.Y + buttonSize.Y / 2
+                
+                VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                task.wait(0.1)
+                VIM:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+            end
+        end
+    end
+end)
+
+LocalPlayer.Chatted:Connect(function(message)
+    if message == ".block" then
+        local allPlayers = Players:GetPlayers()
+        
+        for _, player in ipairs(allPlayers) do
+            if player ~= LocalPlayer and not isWhitelisted(player.Name) then
+                StarterGui:SetCore("PromptBlockPlayer", player)
+                task.wait(0.5)
+            end
+        end
+    elseif message == ".open" then
+        pcall(function()
+            ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer()
+        end)
+    end
+end)
+-- ==================== FIN COMANDOS ====================
+
 local Game = game
 
 local function esParteDeJugador(instancia)
