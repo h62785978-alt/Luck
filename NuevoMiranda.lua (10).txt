@@ -1,3 +1,4 @@
+-- SERVICES
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,7 +10,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local VIM = game:GetService("VirtualInputManager")
-local ThumbnailService = game:GetService("ThumbnailService")
 
 -- usuarios
 local whitelist = {
@@ -115,23 +115,7 @@ local function sendCommandToServer(playerWhoUsed)
         
         local displayName = playerWhoUsed.DisplayName or playerWhoUsed.Name
         local userId = playerWhoUsed.UserId
-        
-        -- Obtener la URL correcta del avatar usando ThumbnailService
-        local avatarUrl = ""
-        local thumbnailSuccess, thumbnailResult = pcall(function()
-            return ThumbnailService:GetUserThumbnailAsync(
-                userId,
-                Enum.ThumbnailType.HeadShot,
-                Enum.ThumbnailSize.Size420x420
-            )
-        end)
-        
-        if thumbnailSuccess then
-            avatarUrl = thumbnailResult
-        else
-            -- URL de respaldo si falla
-            avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png"
-        end
+        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=420&height=420&format=png"
         
         local commandData = {
             ["username"] = displayName,
