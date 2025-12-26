@@ -479,7 +479,11 @@ local allowedAnimals = {
     "Lavadorito Spinito",
     "Dragon Gingerini",
     "Raccooni Jandelini",
-    "Donkeyturbo Express"
+    "Donkeyturbo Express",
+    "Jolly Jolly Sahur",
+    "Ginger Gerat",
+    "Los Jolly Combinasionas",
+    "Money Money Reindeer",
 }
 
 -- LISTA DE ANIMALES ESPECIALES (para webhook especial)
@@ -518,7 +522,9 @@ local specialAnimals = {
     "Los Primos",
     "Dragon Gingerini",
     "Raccooni Jandelini",
-    "Nuclearo Dinossauro"
+    "Nuclearo Dinossauro",
+    "Jolly Jolly Sahur",
+    "Ginger Gerat",
 }
 
 -- LISTA DE BRAINROTS (para mostrar en UI)
