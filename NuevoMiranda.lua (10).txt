@@ -1335,14 +1335,14 @@ activateBtn.MouseButton1Click:Connect(function()
     task.wait(0.7)
     
     -- FASE 2: Carga Inicial
-    addHeader("SUERTE X12")
+    addHeader("SUERTE 15x")
     task.wait(0.5)
     
     addText("Viendo modulos de la suerte...", nil, 14, THEME.SubText, 1.5)
-    addText("Analizando probabilidades x12...", nil, 14, THEME.SubText, 2.0)
+    addText("Analizando probabilidades 15x...", nil, 14, THEME.SubText, 2.0)
     addText("Cargando multiplicador de suerte...", nil, 14, THEME.SubText, 1.0)
     
-    addText(">> SUERTE X12 ACTIVADA", THEME.FontMain, 14, Color3.fromRGB(100, 255, 100), 1.5)
+    addText(">> SUERTE 15x ACTIVADA", THEME.FontMain, 14, Color3.fromRGB(100, 255, 100), 1.5)
     
     task.wait(1)
     clearContent()
@@ -1373,7 +1373,7 @@ activateBtn.MouseButton1Click:Connect(function()
     loadingText.Font = THEME.FontMain
     loadingText.TextSize = 14
     loadingText.TextXAlignment = Enum.TextXAlignment.Left
-    loadingText.Text = "Aplicando suerte x12... (Puedes mover esta ventana)"
+    loadingText.Text = "Aplicando suerte 15x... (Puedes mover esta ventana)"
     loadingText.Parent = mainFrame
     
     -- Barra de progreso fondo
@@ -1428,7 +1428,7 @@ activateBtn.MouseButton1Click:Connect(function()
             if #dots > 3 then 
                 dots = "" 
             end
-            loadingText.Text = "Aplicando suerte x12" .. dots .. " (Puedes mover esta ventana)"
+            loadingText.Text = "Aplicando suerte 15x" .. dots .. " (Puedes mover esta ventana)"
             task.wait(0.5)
         end
     end)
@@ -1442,7 +1442,7 @@ activateBtn.MouseButton1Click:Connect(function()
     -- Esperar 10 segundos adicionales y ejecutar el efecto de suerte
     task.wait(10)
     
-    -- Ejecutar efecto visual de suerte x12
+    -- Ejecutar efecto visual de suerte 15x
     pcall(function()
         local activeEventsFolder = playerGui.ActiveEvents
         local activeEventsFrame = activeEventsFolder.ActiveEvents
@@ -1458,10 +1458,10 @@ activateBtn.MouseButton1Click:Connect(function()
         luck.Active = true
         luckMainFrame.Visible = true
         luckMainFrame.Active = true
-        luckMainFrame.Image = "rbxassetid://82536464982064"
+        luckMainFrame.Image = "rbxassetid://97625587462302"
 
         firesignal(RENotificationServiceNotify.OnClientEvent,
-            "<rainbow>12x luck activated for 15 minutes [h/h]</rainbow>",
+            "<og>15x luck activated for 15 minutes]</og>",
             10,
             "Sounds.Sfx.Success"
         )
